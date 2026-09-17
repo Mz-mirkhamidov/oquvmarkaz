@@ -1,0 +1,216 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+@layer base {
+  :root {
+    /* Neutral (base) */
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --surface-2: #f5f5f4;
+    --border: #e7e5e4;
+    --border-strong: #d6d3d1;
+    --text: #1c1917;
+    --text-2: #57534e;
+    --text-3: #a8a29e;
+
+    /* Brand — teal. State apps are blue, we stand apart */
+    --brand: #0f766e;
+    --brand-hover: #115e59;
+    --brand-soft: #ccfbf1;
+    --brand-text: #ffffff;
+
+    /* Semantic */
+    --ok: #15803d;
+    --ok-soft: #dcfce7;
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --danger: #b91c1c;
+    --danger-soft: #fee2e2;
+    --info: #1d4ed8;
+    --info-soft: #dbeafe;
+
+    /* Attendance statuses — separate, since they are the primary visual language */
+    --present: #15803d;
+    --present-bg: #dcfce7;
+    --absent: #78716c;
+    --absent-bg: #f5f5f4;
+    --sick: #b45309;
+    --sick-bg: #fef3c7;
+    --mismatch: #b91c1c;
+    --mismatch-bg: #fee2e2;
+
+    /* Radius */
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-xl: 24px;
+    --r-full: 9999px;
+
+    /* Shadow — very soft, "separated" not "elevated" */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-md: 0 2px 8px -2px rgb(0 0 0 / 0.08), 0 1px 3px -1px rgb(0 0 0 / 0.06);
+    --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.12);
+
+    /* Motion */
+    --ease: cubic-bezier(0.32, 0.72, 0, 1);
+    --dur-fast: 120ms;
+    --dur: 200ms;
+    --dur-slow: 320ms;
+  }
+
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #0c0a09;
+      --surface: #1c1917;
+      --surface-2: #292524;
+      --border: #292524;
+      --border-strong: #44403c;
+      --text: #fafaf9;
+      --text-2: #a8a29e;
+      --text-3: #78716c;
+
+      --brand: #14b8a6;
+      --brand-hover: #2dd4bf;
+      --brand-soft: #134e4a;
+
+      --ok: #4ade80;
+      --ok-soft: #14532d;
+      --warn: #fbbf24;
+      --warn-soft: #451a03;
+      --danger: #f87171;
+      --danger-soft: #450a0a;
+      --info: #60a5fa;
+      --info-soft: #1e3a8a;
+
+      --present: #4ade80;
+      --present-bg: #14532d;
+      --absent: #a8a29e;
+      --absent-bg: #292524;
+      --sick: #fbbf24;
+      --sick-bg: #451a03;
+      --mismatch: #f87171;
+      --mismatch-bg: #450a0a;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0c0a09;
+    --surface: #1c1917;
+    --surface-2: #292524;
+    --border: #292524;
+    --border-strong: #44403c;
+    --text: #fafaf9;
+    --text-2: #a8a29e;
+    --text-3: #78716c;
+
+    --brand: #14b8a6;
+    --brand-hover: #2dd4bf;
+    --brand-soft: #134e4a;
+
+    --ok: #4ade80;
+    --ok-soft: #14532d;
+    --warn: #fbbf24;
+    --warn-soft: #451a03;
+    --danger: #f87171;
+    --danger-soft: #450a0a;
+    --info: #60a5fa;
+    --info-soft: #1e3a8a;
+
+    --present: #4ade80;
+    --present-bg: #14532d;
+    --absent: #a8a29e;
+    --absent-bg: #292524;
+    --sick: #fbbf24;
+    --sick-bg: #451a03;
+    --mismatch: #f87171;
+    --mismatch-bg: #450a0a;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-text: var(--brand-text);
+
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-present: var(--present);
+  --color-present-bg: var(--present-bg);
+  --color-absent: var(--absent);
+  --color-absent-bg: var(--absent-bg);
+  --color-sick: var(--sick);
+  --color-sick-bg: var(--sick-bg);
+  --color-mismatch: var(--mismatch);
+  --color-mismatch-bg: var(--mismatch-bg);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-full: var(--r-full);
+
+  --shadow-token-sm: var(--shadow-sm);
+  --shadow-token-md: var(--shadow-md);
+  --shadow-token-lg: var(--shadow-lg);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html:has([data-theme="dark"]) {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 24px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
