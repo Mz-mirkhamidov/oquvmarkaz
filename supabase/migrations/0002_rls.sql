@@ -208,12 +208,10 @@ revoke all on sync_ops from authenticated, anon;
 -- service_role bypasses RLS, so its key stays server-only; the grant
 -- restrictions above stay in force even where server code uses it.
 
--- ---------------------------------------------------------------------------
--- Storage bucket policy (attendance photos)
--- ---------------------------------------------------------------------------
-
-create policy storage_attendance_read on storage.objects for select
-  using (
-    bucket_id = 'attendance'
-    and (storage.foldername(name))[1] = auth_org_id()::text
-  );
+-- The storage.objects policy lives in 0005_storage.sql, not here: it's
+-- deliberately split out so a problem with Supabase's storage schema
+-- (e.g. applying this against a bare Postgres, as the RLS test suite
+-- does) can never take the tenant-isolation policies above down with it
+-- — pg's simple-query protocol runs a whole multi-statement file as one
+-- implicit transaction, so one failing statement rolls back everything
+-- before it in the same file.

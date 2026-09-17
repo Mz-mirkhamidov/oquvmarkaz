@@ -8,6 +8,25 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      # RLS is pure Postgres, so the security suite (T6-T10, TZ §11.3/§17.1)
+      # runs against a plain service container rather than needing a real
+      # Supabase project — see tests/security/setup.ts.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qalqon_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/qalqon_test
     steps:
       - uses: actions/checkout@v4
 

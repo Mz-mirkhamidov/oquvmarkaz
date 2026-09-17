@@ -28,15 +28,18 @@ cp .env.example .env.local   # fill in Supabase + Telegram credentials
 pnpm dev
 ```
 
-Apply database migrations against your Supabase project (order matters —
-`0001_init.sql` first, then `0002_rls.sql`):
+Apply database migrations against your Supabase project, in order
+(`0001` → `0005`):
 
 ```bash
 supabase db push
 # or, against a specific project:
-psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
-psql "$DATABASE_URL" -f supabase/migrations/0002_rls.sql
+for f in supabase/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done
 ```
+
+`0005_storage.sql` needs Supabase's `storage` schema and so only applies
+to a real Supabase project — the RLS test suite (below) skips it and
+runs everything else against a bare Postgres instance.
 
 ## Scripts
 
@@ -45,7 +48,10 @@ pnpm dev         # local dev server
 pnpm build       # production build
 pnpm lint        # eslint
 pnpm typecheck   # tsc --noEmit
-pnpm test        # vitest
+pnpm test        # vitest — unit tests always run; the RLS suite in
+                 # tests/security/ needs a reachable Postgres
+                 # (TEST_DATABASE_URL, default postgres://postgres:postgres@127.0.0.1:5432/qalqon_test)
+                 # and skips itself with a warning if none is found
 ```
 
 ## Project status
@@ -55,7 +61,11 @@ result before the next one starts.
 
 - [x] **M0 — Foundation.** Next.js + TS + Tailwind v4, design tokens, base
       UI components, `0001_init.sql` / `0002_rls.sql`, `.env.example`, CI.
-- [ ] M1 — Auth (Telegram login + teacher PIN) and org/group/child CRUD
+- [x] **M1 — Auth and org setup.** Telegram login (`initData` HMAC) +
+      teacher PIN (argon2id, lockout), JWT sessions with refresh
+      rotation + theft detection, org registration wizard, group/child/
+      teacher CRUD, RLS-backed tenant isolation with a real-Postgres test
+      suite in CI (T6-T8, T10, T11).
 - [ ] M2 — Attendance core (online)
 - [ ] M3 — Photos and the evidence chain (hash, signed upload)
 - [ ] M4 — Offline (Dexie outbox, sync engine, Service Worker)
