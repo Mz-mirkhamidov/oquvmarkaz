@@ -96,7 +96,15 @@ result before the next one starts.
       confirmation), append-only corrections via a SECURITY DEFINER
       Postgres function (`supersede_attendance_record`) so a same-day
       re-tap and a past-day correction share one audited path.
-- [ ] M3 — Photos and the evidence chain (hash, signed upload)
+- [x] **M3 — Photos and the evidence chain.** `lib/storage/` (a
+      `StorageProvider` interface per TZ §11.7a, so the storage backend
+      can move to an Uzbekistan-hosted one later without touching call
+      sites), `/api/photos/sign` + `/api/photos/attach` (server re-hashes
+      the uploaded bytes and rejects on mismatch — TZ §7.7's whole point),
+      three private storage buckets with org-scoped read policies,
+      `CameraSheet` (getUserMedia capture, front/back switch, "rasmsiz
+      belgilash" fallback when the camera's denied), client-side WebP
+      compression + SHA-256 hashing before upload.
 - [ ] M4 — Offline (Dexie outbox, sync engine, Service Worker)
 - [ ] M5 — State-system comparison and reports (XLSX/PDF)
 - [ ] M6 — Telegram notifications

@@ -48,11 +48,12 @@ export async function resetDatabase(): Promise<void> {
       DROP SCHEMA IF EXISTS extensions CASCADE;
     `);
 
-    // 0005_storage.sql needs Supabase's `storage` schema, which doesn't
-    // exist on a bare Postgres instance — everything it depends on
-    // (auth_org_id(), the base tables) is still covered by the rest.
+    // 0005/0008 need Supabase's `storage` schema, which doesn't exist on
+    // a bare Postgres instance — everything they depend on (auth_org_id(),
+    // the base tables) is still covered by the rest.
+    const STORAGE_MIGRATIONS = new Set(["0005_storage.sql", "0008_storage_buckets.sql"]);
     const files = readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith(".sql") && f !== "0005_storage.sql")
+      .filter((f) => f.endsWith(".sql") && !STORAGE_MIGRATIONS.has(f))
       .sort();
 
     for (const file of files) {

@@ -127,3 +127,64 @@ describe.runIf(dbAvailable)("guard_closed_day (T5)", () => {
     expect(result.rows[0].supersedes_id).toBe(originalId);
   });
 });
+
+describe.runIf(dbAvailable)("attendance_photos is append-only (T9)", () => {
+  it("allows an org-scoped insert but rejects UPDATE and DELETE from authenticated", async () => {
+    const { orgId, childId, dayId, managerId, claims } = await seedOrgChildDay();
+    const recordId = randomUUID();
+    const photoId = randomUUID();
+
+    await seed(
+      `insert into attendance_records (id, org_id, day_id, child_id, status, marked_by) values ($1,$2,$3,$4,'present',$5)`,
+      [recordId, orgId, dayId, childId, managerId],
+    );
+
+    const hash = "a".repeat(64);
+    const insertRes = await withTenant(claims, (client) =>
+      client.query(
+        `insert into attendance_photos (id, org_id, record_id, child_id, storage_path, sha256, bytes, taken_at)
+         values ($1,$2,$3,$4,'path/to.webp',$5,1000,now()) returning id`,
+        [photoId, orgId, recordId, childId, hash],
+      ),
+    );
+    expect(insertRes.rows[0].id).toBe(photoId);
+
+    await expect(
+      withTenant(claims, (client) =>
+        client.query("update attendance_photos set sha256 = $1 where id = $2", [
+          "b".repeat(64),
+          photoId,
+        ]),
+      ),
+    ).rejects.toThrow(/permission denied/i);
+
+    await expect(
+      withTenant(claims, (client) =>
+        client.query("delete from attendance_photos where id = $1", [photoId]),
+      ),
+    ).rejects.toThrow(/permission denied/i);
+  });
+
+  it("rejects a photo pointed at another org's record via RLS", async () => {
+    const a = await seedOrgChildDay();
+    const b = await seedOrgChildDay();
+    const recordId = randomUUID();
+
+    await seed(
+      `insert into attendance_records (id, org_id, day_id, child_id, status, marked_by) values ($1,$2,$3,$4,'present',$5)`,
+      [recordId, a.orgId, a.dayId, a.childId, a.managerId],
+    );
+
+    // org B's session trying to attach a photo under org A's org_id — RLS's
+    // records_insert/photos_insert check (org_id = auth_org_id()) blocks it.
+    await expect(
+      withTenant(b.claims, (client) =>
+        client.query(
+          `insert into attendance_photos (id, org_id, record_id, child_id, storage_path, sha256, bytes, taken_at)
+           values ($1,$2,$3,$4,'path/to.webp',$5,1000,now())`,
+          [randomUUID(), a.orgId, recordId, a.childId, "c".repeat(64)],
+        ),
+      ),
+    ).rejects.toThrow(/permission denied|row-level security/i);
+  });
+});

@@ -9,7 +9,7 @@ export async function getDayView(
   orgId: string,
   dayDate: string,
 ) {
-  const [{ data: day }, { data: children }, { data: groups }] = await Promise.all([
+  const [{ data: day }, { data: children }, { data: groups }, { data: org }] = await Promise.all([
     db.from("attendance_days").select("*").eq("org_id", orgId).eq("day_date", dayDate).maybeSingle(),
     db
       .from("children")
@@ -21,6 +21,7 @@ export async function getDayView(
     // itself is manager-gated) — the davomat screen's group picker needs
     // names even for a teacher viewing just their own group.
     db.from("groups").select("id, name").eq("org_id", orgId).eq("is_active", true),
+    db.from("organizations").select("photo_required").eq("id", orgId).maybeSingle(),
   ]);
 
   let records: { child_id: string; status: string; marked_at: string; note: string | null }[] = [];
@@ -38,5 +39,6 @@ export async function getDayView(
     day,
     children: (children ?? []).map((c) => ({ ...c, record: byChild.get(c.id) ?? null })),
     groups: groups ?? [],
+    photo_required: org?.photo_required ?? true,
   };
 }

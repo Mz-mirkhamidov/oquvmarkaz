@@ -8,6 +8,8 @@ import type { AttendStatus } from "@/lib/db/types";
 export interface ChildCardData {
   id: string;
   full_name: string;
+  group_id: string | null;
+  photo_consent: boolean;
   record: { status: AttendStatus; marked_at: string } | null;
 }
 

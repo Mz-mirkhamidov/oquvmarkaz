@@ -6,6 +6,7 @@ import { Loader2, WifiOff, Lock } from "lucide-react";
 import { ChildCard, type ChildCardData } from "@/components/attendance/ChildCard";
 import { StatusSheet } from "@/components/attendance/StatusSheet";
 import { SyncBar, type SyncState } from "@/components/attendance/SyncBar";
+import { CameraSheet } from "@/components/attendance/CameraSheet";
 import { StatTile } from "@/components/shared/StatTile";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { apiGet, apiPost, ApiClientError } from "@/lib/api/client";
 import { getOrCreateDeviceKey } from "@/lib/device";
+import { compressPhoto } from "@/lib/media/compress";
+import { sha256Hex } from "@/lib/crypto/sha256";
 import type { AttendStatus } from "@/lib/db/types";
 
 interface Group {
@@ -33,6 +36,7 @@ interface DayView {
   children: ChildCardData[];
   groups: Group[];
   date: string;
+  photo_required: boolean;
 }
 
 type Screen = "loading" | "ready" | "empty" | "error" | "offline";
@@ -43,6 +47,7 @@ export default function DavomatPage() {
   const [groupFilter, setGroupFilter] = useState<string>("");
   const [syncState, setSyncState] = useState<SyncState>("saved");
   const [activeChild, setActiveChild] = useState<ChildCardData | null>(null);
+  const [cameraChild, setCameraChild] = useState<ChildCardData | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -84,9 +89,11 @@ export default function DavomatPage() {
 
   const isClosed = view?.day?.status === "closed";
 
-  async function mark(child: ChildCardData, status: AttendStatus) {
+  async function mark(child: ChildCardData, status: AttendStatus, photo?: Blob) {
     if (!view || isClosed) return;
     setSyncState("saving");
+
+    const recordId = crypto.randomUUID();
 
     // Optimistic update
     const previous = view;
@@ -107,12 +114,7 @@ export default function DavomatPage() {
             op_id: crypto.randomUUID(),
             type: "attendance.mark",
             client_at: new Date().toISOString(),
-            payload: {
-              record_id: crypto.randomUUID(),
-              day_date: view.date,
-              child_id: child.id,
-              status,
-            },
+            payload: { record_id: recordId, day_date: view.date, child_id: child.id, status },
           },
         ],
       });
@@ -121,17 +123,67 @@ export default function DavomatPage() {
         setSyncState("error");
         return;
       }
-      setSyncState("saved");
+      if (photo) {
+        try {
+          await uploadPhoto(child.id, recordId, view.date, photo);
+          setSyncState("saved");
+        } catch {
+          // The attendance record itself is already saved — a failed photo
+          // upload isn't a lost mark, just missing evidence for this one.
+          setSyncState("error");
+        }
+      } else {
+        setSyncState("saved");
+      }
     } catch {
       setView(previous);
       setSyncState(navigator.onLine ? "error" : "offline");
     }
   }
 
+  async function uploadPhoto(childId: string, recordId: string, dayDate: string, rawBlob: Blob) {
+    const compressed = await compressPhoto(rawBlob);
+    const sha256 = await sha256Hex(compressed);
+    const photoId = crypto.randomUUID();
+
+    const sign = await apiPost<{ upload_url: string; path: string; token?: string }>(
+      "/api/photos/sign",
+      {
+        photo_id: photoId,
+        record_id: recordId,
+        child_id: childId,
+        day_date: dayDate,
+        sha256,
+        bytes: compressed.size,
+        mime: "image/webp",
+      },
+    );
+
+    const uploadRes = await fetch(sign.upload_url, {
+      method: "PUT",
+      headers: { "Content-Type": "image/webp" },
+      body: compressed,
+    });
+    if (!uploadRes.ok) throw new Error("upload_failed");
+
+    await apiPost("/api/photos/attach", {
+      photo_id: photoId,
+      record_id: recordId,
+      path: sign.path,
+      sha256,
+      bytes: compressed.size,
+      taken_at: new Date().toISOString(),
+    });
+  }
+
   function handleTap(child: ChildCardData) {
     if (isClosed) return;
     if (!child.record) {
-      void mark(child, "present");
+      if (view?.photo_required && child.photo_consent) {
+        setCameraChild(child);
+      } else {
+        void mark(child, "present");
+      }
     } else {
       setActiveChild(child);
     }
@@ -271,6 +323,24 @@ export default function DavomatPage() {
           childName={activeChild.full_name}
           currentStatus={activeChild.record?.status}
           onSelect={(status) => void mark(activeChild, status)}
+        />
+      )}
+
+      {cameraChild && (
+        <CameraSheet
+          open={!!cameraChild}
+          childName={cameraChild.full_name}
+          onClose={() => setCameraChild(null)}
+          onSkip={() => {
+            const child = cameraChild;
+            setCameraChild(null);
+            void mark(child, "present");
+          }}
+          onCapture={(blob) => {
+            const child = cameraChild;
+            setCameraChild(null);
+            void mark(child, "present", blob);
+          }}
         />
       )}
     </div>
