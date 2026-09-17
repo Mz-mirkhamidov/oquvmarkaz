@@ -40,6 +40,12 @@ export async function resetDatabase(): Promise<void> {
       CREATE SCHEMA public;
       GRANT ALL ON SCHEMA public TO postgres;
       GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+      -- 0007 moves pg_trgm into the extensions schema (IF NOT EXISTS) —
+      -- drop it too so a rerun doesn't leave the extension registered
+      -- outside public, which would make 0001's own (schema-less) CREATE
+      -- EXTENSION call a no-op and leave its index's unqualified
+      -- gin_trgm_ops unresolved.
+      DROP SCHEMA IF EXISTS extensions CASCADE;
     `);
 
     // 0005_storage.sql needs Supabase's `storage` schema, which doesn't

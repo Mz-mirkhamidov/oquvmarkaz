@@ -17,5 +17,10 @@ export default defineConfig({
       "tests/security/**/*.spec.ts",
       "lib/**/*.test.{ts,tsx}",
     ],
+    // tests/security/*.spec.ts each reset the whole shared Postgres schema
+    // at module load (resetDatabase()) — running spec files in parallel
+    // (Vitest's default) races those resets against each other. The suite
+    // is small enough that sequential files cost nothing noticeable.
+    fileParallelism: false,
   },
 });

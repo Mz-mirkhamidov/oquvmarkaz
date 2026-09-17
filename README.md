@@ -22,14 +22,33 @@ state system in any way.
 
 ## Getting started
 
+A dedicated Supabase project ("qalqon", ref `mxxsmgkpdgdexodvdpzb`,
+`eu-central-1`) exists with every migration below already applied. To run
+against it:
+
 ```bash
 pnpm install
-cp .env.example .env.local   # fill in Supabase + Telegram credentials
+cp .env.example .env.local
 pnpm dev
 ```
 
-Apply database migrations against your Supabase project, in order
-(`0001` → `0005`):
+Fill in `.env.local` from the project's dashboard (Settings → API):
+
+- `NEXT_PUBLIC_SUPABASE_URL` = `https://mxxsmgkpdgdexodvdpzb.supabase.co`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the `anon` legacy key shown there
+- `SUPABASE_SERVICE_ROLE_KEY` = the `service_role` key shown there
+- `SUPABASE_JWT_SECRET` = Settings → API → JWT Settings → "Legacy JWT
+  secret" (enable it there if the project doesn't show one yet — this
+  project was created on Supabase's newer per-key signing system, which
+  has no shared secret by default, and our own JWT signing needs one so
+  PostgREST accepts our tokens for the `authenticated` role. None of
+  this is retrievable through the Supabase MCP tools this project was
+  built with — it's a one-time manual step in the dashboard.)
+- Telegram vars: create a bot via @BotFather for `TELEGRAM_BOT_TOKEN` /
+  `TELEGRAM_BOT_USERNAME`
+
+To point at a different Supabase project instead, apply every migration
+in `supabase/migrations/` in order:
 
 ```bash
 supabase db push
@@ -40,6 +59,10 @@ for f in supabase/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done
 `0005_storage.sql` needs Supabase's `storage` schema and so only applies
 to a real Supabase project — the RLS test suite (below) skips it and
 runs everything else against a bare Postgres instance.
+
+After any migration change, regenerate `lib/db/types.ts` from the live
+schema (`mcp__Supabase__generate_typescript_types`, or `supabase gen
+types typescript`) rather than hand-editing it.
 
 ## Scripts
 
@@ -66,7 +89,13 @@ result before the next one starts.
       rotation + theft detection, org registration wizard, group/child/
       teacher CRUD, RLS-backed tenant isolation with a real-Postgres test
       suite in CI (T6-T8, T10, T11).
-- [ ] M2 — Attendance core (online)
+- [x] **M2 — Attendance core (online).** `/api/sync/push` (idempotent
+      `attendance.mark` / `attendance.correct` / `day.close` ops),
+      `/api/sync/pull`, `/api/attendance/{today,[date],close,reopen}`,
+      the `/davomat` screen (ChildCard, StatusSheet, SyncBar, day-close
+      confirmation), append-only corrections via a SECURITY DEFINER
+      Postgres function (`supersede_attendance_record`) so a same-day
+      re-tap and a past-day correction share one audited path.
 - [ ] M3 — Photos and the evidence chain (hash, signed upload)
 - [ ] M4 — Offline (Dexie outbox, sync engine, Service Worker)
 - [ ] M5 — State-system comparison and reports (XLSX/PDF)

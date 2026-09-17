@@ -1,7 +1,7 @@
 import "server-only";
 
 import { adminDb } from "@/lib/db/admin";
-import type { UserRole } from "@/lib/db/types";
+import type { Json, UserRole } from "@/lib/db/types";
 
 /**
  * Writes to `audit_log` via service_role — RLS on that table grants
@@ -15,8 +15,8 @@ export async function logAudit(entry: {
   action: string;
   entity: string;
   entityId?: string | null;
-  before?: unknown;
-  after?: unknown;
+  before?: Json;
+  after?: Json;
   request?: Request;
 }) {
   const { error } = await adminDb()
