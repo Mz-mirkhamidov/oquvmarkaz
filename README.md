@@ -105,7 +105,19 @@ result before the next one starts.
       `CameraSheet` (getUserMedia capture, front/back switch, "rasmsiz
       belgilash" fallback when the camera's denied), client-side WebP
       compression + SHA-256 hashing before upload.
-- [ ] M4 — Offline (Dexie outbox, sync engine, Service Worker)
+- [x] **M4 — Offline-first.** `lib/offline/db.ts` (Dexie schema: outbox,
+      photos, cached children/groups, local records, meta), a
+      write-local-then-queue pattern (`lib/offline/queue.ts`) so
+      `/davomat` never blocks on the network, a sync engine
+      (`lib/offline/sync.ts`) with exponential backoff shared by real
+      network failures and 401/429/500 responses, a sequential (not
+      parallel) photo-upload queue, `pullAndCache()`'s conflict rule
+      (server truth wins except unsynced local entries), and a
+      hand-written vanilla-JS service worker (`public/sw.js` — the
+      standard `@serwist/next` webpack plugin doesn't support Turbopack,
+      confirmed from its own source) implementing NetworkFirst/
+      CacheFirst/NetworkOnly/StaleWhileRevalidate plus an offline
+      fallback page, with a user-triggered (never forced) update banner.
 - [ ] M5 — State-system comparison and reports (XLSX/PDF)
 - [ ] M6 — Telegram notifications
 - [ ] M7 — Landing page and polish

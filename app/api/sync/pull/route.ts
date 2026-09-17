@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   const today = todayInTashkent();
   const { data: day } = await db
     .from("attendance_days")
-    .select("id")
+    .select("id, status")
     .eq("org_id", orgId)
     .eq("day_date", today)
     .maybeSingle();
@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
     groups: groups.data ?? [],
     users: users.data ?? [],
     attendance_records: records.data ?? [],
+    day_status: day?.status ?? "open",
     today,
   });
 }
