@@ -19,6 +19,7 @@ state system in any way.
 - Supabase (Postgres 15 + Storage), RLS on every table, own JWT (no Supabase Auth)
 - Dexie (IndexedDB) + Service Worker for offline-first sync (from M4 onward)
 - `@tanstack/react-query`, `zod`, `grammy` (Telegram bot), `@react-pdf/renderer`, `exceljs`
+- `@sentry/nextjs` for error monitoring (no-op until `SENTRY_DSN` is set), Playwright for E2E
 
 ## Getting started
 
@@ -90,6 +91,10 @@ pnpm test        # vitest — unit tests always run; the RLS suite in
                  # tests/security/ needs a reachable Postgres
                  # (TEST_DATABASE_URL, default postgres://postgres:postgres@127.0.0.1:5432/qalqon_test)
                  # and skips itself with a warning if none is found
+pnpm test:e2e    # playwright — builds and serves the app itself (see
+                 # playwright.config.ts); covers pages that render without
+                 # a live backend: landing, auth entry points, the PWA
+                 # manifest, and the offline-first service worker
 ```
 
 ## Project status
@@ -173,7 +178,24 @@ result before the next one starts.
       `notification_outbox` has no `authenticated` INSERT policy at all
       (0002_rls.sql) — both the enqueue and the drain go through
       `service_role`, mirrored by `tests/security/parents.spec.ts`.
-- [ ] M7 — Landing page and polish
+- [x] **M7 — Landing page, PWA manifest, monitoring, E2E.** Full landing
+      page (problem, how-it-works, the six real capabilities built across
+      M2-M6, a trust/security section, final CTA) replacing the M0
+      placeholder. `app/manifest.ts` (served at `/manifest.webmanifest`)
+      plus generated icons (`scripts/generate-icons.tsx`, using
+      `next/og`'s `ImageResponse` — no external design tooling available
+      in this environment) for the home-screen install prompt; removed
+      the unused default Next.js scaffold SVGs. `@sentry/nextjs` wired
+      through `instrumentation.ts` / `instrumentation-client.ts` (the
+      Turbopack-compatible file convention, Next.js 15.3+ — the older
+      `sentry.client.config.ts` auto-load is webpack-only, the same
+      problem `public/sw.js` hit with `@serwist/next` in M4), a no-op
+      whenever `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` are unset. Playwright
+      E2E scaffolding (`playwright.config.ts`, `tests/e2e/`) covering the
+      landing page, the PWA manifest, and the offline-first service
+      worker (registration, the offline fallback, and a previously
+      visited page still loading) against a real production build; wired
+      into CI as a separate job.
 
 ## Hard rules
 

@@ -58,3 +58,28 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright's browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E tests
+        # No Supabase project configured here — playwright.config.ts's
+        # webServer builds and starts the app itself, and tests/e2e/ only
+        # covers pages that render without a live backend (landing, auth
+        # entry points, PWA manifest, the offline-first service worker).
+        run: pnpm test:e2e

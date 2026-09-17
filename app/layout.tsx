@@ -11,9 +11,21 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Qalqon",
+  title: {
+    default: "Qalqon — davomat va dalil tizimi",
+    template: "%s · Qalqon",
+  },
   description:
-    "Nodavlat bog'chalar uchun mustaqil davomat va dalil tizimi.",
+    "Nodavlat bog'chalar uchun mustaqil davomat va dalil tizimi. Davlat tizimi ishlamasa ham, sizda rasm, vaqt va imzo bilan tasdiqlangan dalil qoladi.",
+  icons: {
+    icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Qalqon",
+  },
 };
 
 export const viewport: Viewport = {
