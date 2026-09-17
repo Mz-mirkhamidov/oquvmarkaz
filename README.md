@@ -118,7 +118,26 @@ result before the next one starts.
       confirmed from its own source) implementing NetworkFirst/
       CacheFirst/NetworkOnly/StaleWhileRevalidate plus an offline
       fallback page, with a user-triggered (never forced) update banner.
-- [ ] M5 — State-system comparison and reports (XLSX/PDF)
+- [x] **M5 — State comparison, disputes and reports.** `/hisobot`
+      (month hub) and `/hisobot/[sana]` (per-day comparison): the director
+      marks each child's state-system verdict against what we recorded
+      (`state_checks`, `/api/state/[date]`), and a rejected verdict is the
+      mismatch signal the rest of the milestone keys off. Rejected checks
+      bundle into a `dispute` (`/api/disputes`), whose evidence — child,
+      day, our status, rejection reason, the marking teacher, and the
+      photo's SHA-256 as tamper-evidence without embedding the photo
+      itself — renders into a PDF via `@react-pdf/renderer`
+      (`lib/reports/dispute-pdf.tsx`, `/api/disputes/[id]/pdf`); a
+      submitted dispute's bundle is frozen in the `reports` storage
+      bucket under a verification `bundle_code`. A monthly attendance
+      register (daily summary + a per-child/per-day status grid) exports
+      as XLSX via `exceljs` (`/api/reports/monthly`). `0009_dispute_items_
+      hardening.sql` closes an RLS gap found while building this: writing
+      a `dispute_items` row now also checks that `check_id` belongs to
+      the caller's org, not just `dispute_id` — the two-layer defense
+      TZ §11.3 asks for everywhere else. `lib/storage/` now takes a
+      bucket argument (`storage("reports")`) instead of hardcoding
+      `attendance`.
 - [ ] M6 — Telegram notifications
 - [ ] M7 — Landing page and polish
 

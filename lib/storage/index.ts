@@ -19,19 +19,24 @@ export interface StorageProvider {
   createUploadUrl(path: string, opts: { expiresIn: number }): Promise<UploadTarget>;
   createReadUrl(path: string, opts: { expiresIn: number }): Promise<string>;
   read(path: string): Promise<Uint8Array>;
+  upload(path: string, bytes: Uint8Array | Buffer, contentType: string): Promise<void>;
   remove(paths: string[]): Promise<void>;
 }
 
-let cached: StorageProvider | undefined;
+export type StorageBucket = "attendance" | "avatars" | "reports";
 
-export function storage(): StorageProvider {
-  if (cached) return cached;
+const cached = new Map<StorageBucket, StorageProvider>();
+
+export function storage(bucket: StorageBucket = "attendance"): StorageProvider {
+  const existing = cached.get(bucket);
+  if (existing) return existing;
   const provider = process.env.STORAGE_PROVIDER ?? "supabase";
   if (provider !== "supabase") {
     // S3-compatible implementation lands with the self-hosted migration
     // path (TZ §11.7a.3) — not needed for the Supabase Cloud pilot.
     throw new Error(`Unknown STORAGE_PROVIDER: ${provider}`);
   }
-  cached = createSupabaseStorage();
-  return cached;
+  const created = createSupabaseStorage(bucket);
+  cached.set(bucket, created);
+  return created;
 }

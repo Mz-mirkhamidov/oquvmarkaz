@@ -45,6 +45,10 @@ export function apiPatch<T>(url: string, payload: unknown): Promise<T> {
   return apiFetch<T>(url, { method: "PATCH", body: JSON.stringify(payload) });
 }
 
+export function apiPut<T>(url: string, payload: unknown): Promise<T> {
+  return apiFetch<T>(url, { method: "PUT", body: JSON.stringify(payload) });
+}
+
 export function apiGet<T>(url: string): Promise<T> {
   return apiFetch<T>(url, { method: "GET" });
 }

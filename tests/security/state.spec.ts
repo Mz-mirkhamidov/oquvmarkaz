@@ -1,0 +1,161 @@
+// @vitest-environment node
+import { randomUUID } from "node:crypto";
+import { afterAll, describe, expect, it } from "vitest";
+
+import { pool, resetDatabase, seed, withTenant, type JwtClaims } from "./setup";
+
+// State-system comparison and disputes (M5, TZ F-S* / F-R*). Same real-Postgres
+// approach as tenant-isolation.spec.ts — see that file for why.
+
+let dbAvailable = true;
+try {
+  await resetDatabase();
+} catch (err) {
+  dbAvailable = false;
+  console.warn("state tests skipped — no reachable Postgres (set TEST_DATABASE_URL):", (err as Error).message);
+}
+
+afterAll(async () => {
+  await pool.end().catch(() => {});
+});
+
+async function seedOrgWithManagerTeacherAndDay(orgName = "Test bogcha") {
+  const orgId = randomUUID();
+  const managerId = randomUUID();
+  const teacherId = randomUUID();
+  const childId = randomUUID();
+  const dayId = randomUUID();
+
+  await seed(`insert into organizations (id, name, org_type) values ($1, $2, 'oilaviy')`, [orgId, orgName]);
+  await seed(
+    `insert into app_users (id, org_id, full_name, role, telegram_id) values ($1, $2, 'Owner', 'owner', $3)`,
+    [managerId, orgId, Math.floor(Math.random() * 1e9)],
+  );
+  await seed(
+    `insert into app_users (id, org_id, full_name, role, pin_hash) values ($1, $2, 'Teacher', 'teacher', 'x')`,
+    [teacherId, orgId],
+  );
+  await seed(`insert into children (id, org_id, full_name) values ($1, $2, 'Test Child')`, [childId, orgId]);
+  await seed(`insert into attendance_days (id, org_id, day_date) values ($1, $2, current_date)`, [dayId, orgId]);
+  await seed(
+    `insert into attendance_records (id, org_id, day_id, child_id, status) values ($1, $2, $3, $4, 'present')`,
+    [randomUUID(), orgId, dayId, childId],
+  );
+
+  const managerClaims: JwtClaims = { sub: managerId, org_id: orgId, user_role: "owner" };
+  const teacherClaims: JwtClaims = { sub: teacherId, org_id: orgId, user_role: "teacher" };
+  return { orgId, managerId, teacherId, childId, dayId, managerClaims, teacherClaims };
+}
+
+describe.runIf(dbAvailable)("state_checks RLS", () => {
+  it("a manager can insert a state_check for their own org", async () => {
+    const { orgId, dayId, childId, managerClaims } = await seedOrgWithManagerTeacherAndDay();
+
+    // withTenant rolls back at the end of each call (its own transaction),
+    // so the write and the read that proves it happened must share one call.
+    const rows = await withTenant(managerClaims, async (client) => {
+      await client.query(
+        `insert into state_checks (org_id, day_id, child_id, our_status, result)
+         values ($1, $2, $3, 'present', 'accepted')`,
+        [orgId, dayId, childId],
+      );
+      return client.query("select id from state_checks where day_id = $1", [dayId]);
+    });
+    expect(rows.rows).toHaveLength(1);
+  });
+
+  it("a teacher cannot insert a state_check (manager-only per TZ)", async () => {
+    const { orgId, dayId, childId, teacherClaims } = await seedOrgWithManagerTeacherAndDay();
+
+    await expect(
+      withTenant(teacherClaims, (client) =>
+        client.query(
+          `insert into state_checks (org_id, day_id, child_id, our_status, result)
+           values ($1, $2, $3, 'present', 'accepted')`,
+          [orgId, dayId, childId],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  it("org A cannot see org B's state_checks", async () => {
+    const a = await seedOrgWithManagerTeacherAndDay("Org A");
+    const b = await seedOrgWithManagerTeacherAndDay("Org B");
+
+    await seed(
+      `insert into state_checks (org_id, day_id, child_id, our_status, result)
+       values ($1, $2, $3, 'present', 'rejected')`,
+      [b.orgId, b.dayId, b.childId],
+    );
+
+    const rows = await withTenant(a.managerClaims, (client) =>
+      client.query("select id from state_checks where org_id = $1", [b.orgId]),
+    );
+    expect(rows.rows).toHaveLength(0);
+  });
+});
+
+describe.runIf(dbAvailable)("disputes RLS", () => {
+  async function seedRejectedCheck(orgId: string, dayId: string, childId: string) {
+    const checkId = randomUUID();
+    await seed(
+      `insert into state_checks (id, org_id, day_id, child_id, our_status, result, reason)
+       values ($1, $2, $3, $4, 'present', 'rejected', 'xatolik')`,
+      [checkId, orgId, dayId, childId],
+    );
+    return checkId;
+  }
+
+  it("a teacher cannot create a dispute", async () => {
+    const { orgId, teacherClaims } = await seedOrgWithManagerTeacherAndDay();
+
+    await expect(
+      withTenant(teacherClaims, (client) =>
+        client.query(`insert into disputes (org_id, period_month, title) values ($1, current_date, 'X')`, [
+          orgId,
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  it("a manager cannot attach another org's state_check to their dispute (0009 hardening)", async () => {
+    const a = await seedOrgWithManagerTeacherAndDay("Org A");
+    const b = await seedOrgWithManagerTeacherAndDay("Org B");
+    const otherOrgCheckId = await seedRejectedCheck(b.orgId, b.dayId, b.childId);
+
+    const disputeId = randomUUID();
+    await seed(`insert into disputes (id, org_id, period_month, title) values ($1, $2, current_date, 'X')`, [
+      disputeId,
+      a.orgId,
+    ]);
+
+    await expect(
+      withTenant(a.managerClaims, (client) =>
+        client.query(`insert into dispute_items (dispute_id, check_id) values ($1, $2)`, [
+          disputeId,
+          otherOrgCheckId,
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  it("a manager can attach their own org's rejected check to their dispute", async () => {
+    const { orgId, dayId, childId, managerClaims } = await seedOrgWithManagerTeacherAndDay();
+    const checkId = await seedRejectedCheck(orgId, dayId, childId);
+
+    const disputeId = randomUUID();
+    await seed(`insert into disputes (id, org_id, period_month, title) values ($1, $2, current_date, 'X')`, [
+      disputeId,
+      orgId,
+    ]);
+
+    const rows = await withTenant(managerClaims, async (client) => {
+      await client.query(`insert into dispute_items (dispute_id, check_id) values ($1, $2)`, [
+        disputeId,
+        checkId,
+      ]);
+      return client.query("select check_id from dispute_items where dispute_id = $1", [disputeId]);
+    });
+    expect(rows.rows).toHaveLength(1);
+  });
+});
