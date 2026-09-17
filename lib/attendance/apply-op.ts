@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/db/types";
 import type { SyncOp, SyncOpResult } from "@/lib/schemas/sync";
+import { enqueueAttendanceNotification } from "@/lib/notifications/enqueue";
 
 type Db = SupabaseClient<Database>;
 
@@ -18,6 +19,34 @@ interface ApplyContext {
   orgId: string;
   userId: string;
   deviceId?: string;
+}
+
+async function notifyGuardians(
+  orgId: string,
+  childId: string,
+  childName: string,
+  dayDate: string,
+  status: "present" | "absent" | "sick" | "vacation",
+): Promise<void> {
+  try {
+    if (status === "present") {
+      await enqueueAttendanceNotification(orgId, childId, {
+        kind: "arrival",
+        child_name: childName,
+        day_date: dayDate,
+        marked_at: new Date().toISOString(),
+      });
+    } else {
+      await enqueueAttendanceNotification(orgId, childId, {
+        kind: "absent",
+        child_name: childName,
+        day_date: dayDate,
+        status,
+      });
+    }
+  } catch (err) {
+    console.error("notify_guardians_error", err);
+  }
 }
 
 async function getOrCreateDay(db: Db, orgId: string, dayDate: string) {
@@ -56,7 +85,7 @@ async function applyMark(op: Extract<SyncOp, { type: "attendance.mark" }>, ctx: 
 
   const { data: child } = await db
     .from("children")
-    .select("id")
+    .select("id, full_name")
     .eq("id", child_id)
     .eq("org_id", orgId)
     .maybeSingle();
@@ -90,6 +119,12 @@ async function applyMark(op: Extract<SyncOp, { type: "attendance.mark" }>, ctx: 
       if (error.message?.includes("DAY_CLOSED")) throw new RejectedOpError("day_closed");
       throw new RejectedOpError("db_error");
     }
+
+    // Fire-and-forget — a linked parent's notification is a courtesy, not
+    // part of the attendance write itself; never let it fail the op. Only
+    // a fresh mark notifies (not a same-day re-tap below, or a correction
+    // in applyCorrect) so a parent gets exactly one ping per status.
+    void notifyGuardians(orgId, child_id, child.full_name, day_date, status);
     return { status: "applied" as const, record_id };
   }
 
@@ -192,7 +227,7 @@ export async function closeDay(
 
   const { data: children } = await db
     .from("children")
-    .select("id")
+    .select("id, full_name")
     .eq("org_id", orgId)
     .eq("is_active", true);
 
@@ -218,6 +253,10 @@ export async function closeDay(
       })),
     );
     if (error) throw new RejectedOpError("db_error");
+
+    for (const c of unmarked) {
+      void notifyGuardians(orgId, c.id, c.full_name, dayDate, "absent");
+    }
   }
 
   const seal = await computeDaySeal(db, day.id);

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils/cn";
 import { OrgSettingsTab } from "@/components/settings/OrgSettingsTab";
 import { GroupsTab } from "@/components/settings/GroupsTab";
 import { TeachersTab } from "@/components/settings/TeachersTab";
+import { ParentsTab } from "@/components/settings/ParentsTab";
 
 const TABS = [
   { slug: "bogcha", label: "Bog'cha" },
@@ -49,7 +50,8 @@ export default function SozlamaTabPage({ params }: PageProps) {
       {tab === "bogcha" && <OrgSettingsTab />}
       {tab === "guruhlar" && <GroupsTab />}
       {tab === "xodimlar" && <TeachersTab />}
-      {(tab === "qurilmalar" || tab === "ota-onalar" || tab === "obuna") && (
+      {tab === "ota-onalar" && <ParentsTab />}
+      {(tab === "qurilmalar" || tab === "obuna") && (
         <p className="text-sm text-text-2">Bu bo&apos;lim keyingi bosqichda qo&apos;shiladi.</p>
       )}
     </div>

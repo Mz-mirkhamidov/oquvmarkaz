@@ -64,6 +64,21 @@ After any migration change, regenerate `lib/db/types.ts` from the live
 schema (`mcp__Supabase__generate_typescript_types`, or `supabase gen
 types typescript`) rather than hand-editing it.
 
+After each deploy whose URL changed, point Telegram's webhook at it:
+
+```bash
+TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... NEXT_PUBLIC_APP_URL=https://... \
+  pnpm telegram:set-webhook
+```
+
+`notification_outbox` (parent Telegram messages) is drained by
+`POST /api/cron/notifications`, gated by `CRON_SECRET`. `vercel.json`
+schedules it every minute via Vercel Cron, which sends `Authorization:
+Bearer $CRON_SECRET` automatically when that env var is set on the
+project — on a plan whose cron minimum is coarser than a minute, widen
+`vercel.json`'s schedule, or call the same route from any other
+scheduler that can send that header.
+
 ## Scripts
 
 ```bash
@@ -138,7 +153,26 @@ result before the next one starts.
       TZ §11.3 asks for everywhere else. `lib/storage/` now takes a
       bucket argument (`storage("reports")`) instead of hardcoding
       `attendance`.
-- [ ] M6 — Telegram notifications
+- [x] **M6 — Telegram notifications.** `lib/telegram/bot.ts` (a `grammy`
+      bot, one instance per process, no long-polling — webhook only) and
+      `/api/telegram/webhook` (the `std/http` framework adapter, gated by
+      the `X-Telegram-Bot-Api-Secret-Token` Telegram echoes back). Parent
+      linking: the director generates an 8-character one-time code per
+      parent (`/sozlama/ota-onalar`, `lib/utils/link-code.ts`) as a
+      `t.me/<bot>?start=<code>` deep link; `/start <code>` in the bot
+      consumes it, storing the parent's `telegram_chat_id`. Every fresh
+      (not re-tapped or corrected) attendance mark enqueues one
+      `notification_outbox` row per linked, notification-enabled parent
+      of that child (`lib/notifications/enqueue.ts`, called from
+      `applyMark`/`closeDay` in `lib/attendance/apply-op.ts`) — arrival
+      for `present`, a status note otherwise. `POST /api/cron/notifications`
+      (Vercel Cron, `vercel.json`) drains the outbox
+      (`lib/notifications/processor.ts`) via `bot.api.sendMessage`,
+      sequentially (Telegram is rate-limited per chat), with the same
+      attempts/backoff-to-failed shape as the offline sync outbox.
+      `notification_outbox` has no `authenticated` INSERT policy at all
+      (0002_rls.sql) — both the enqueue and the drain go through
+      `service_role`, mirrored by `tests/security/parents.spec.ts`.
 - [ ] M7 — Landing page and polish
 
 ## Hard rules
