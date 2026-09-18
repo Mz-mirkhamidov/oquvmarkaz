@@ -48,6 +48,26 @@ export async function resetDatabase(): Promise<void> {
       DROP SCHEMA IF EXISTS extensions CASCADE;
     `);
 
+    // Roles (unlike tables) aren't scoped to a schema, so DROP SCHEMA above
+    // doesn't remove qalqon_app/qalqon_auth (created by 0012_app_role.sql) —
+    // without this, a second spec file's resetDatabase() run hits "role
+    // already exists" on that migration. DROP OWNED first: the schema drop
+    // already removed the tables they owned, but 0012's `alter default
+    // privileges ... grant ... to qalqon_app` leaves a default-ACL entry
+    // that otherwise blocks DROP ROLE with "some objects depend on it".
+    await client.query(`
+      DO $$ BEGIN
+        IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'qalqon_app') THEN
+          EXECUTE 'DROP OWNED BY qalqon_app CASCADE';
+          EXECUTE 'DROP ROLE qalqon_app';
+        END IF;
+        IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'qalqon_auth') THEN
+          EXECUTE 'DROP OWNED BY qalqon_auth CASCADE';
+          EXECUTE 'DROP ROLE qalqon_auth';
+        END IF;
+      END $$;
+    `);
+
     // 0005/0008 need Supabase's `storage` schema, which doesn't exist on
     // a bare Postgres instance — everything they depend on (auth_org_id(),
     // the base tables) is still covered by the rest.
@@ -57,7 +77,17 @@ export async function resetDatabase(): Promise<void> {
       .sort();
 
     for (const file of files) {
-      const sql = readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
+      let sql = readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
+      // 0012_app_role.sql uses psql `:'var'` placeholders for the real
+      // roles' passwords (kept out of git on purpose, see that file) — psql
+      // substitutes them via `-v`, but a plain pg client sends the text
+      // verbatim. This harness only ever runs against a throwaway service
+      // container, so a fixed local placeholder is fine here.
+      if (file === "0012_app_role.sql") {
+        sql = sql
+          .replaceAll(":'qalqon_app_password'", "'test_app_pw'")
+          .replaceAll(":'qalqon_auth_password'", "'test_auth_pw'");
+      }
       await client.query(sql);
 
       // Mirror Supabase's own baseline grants right after the base schema

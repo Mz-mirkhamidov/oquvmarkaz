@@ -39,9 +39,9 @@ async function seedOrgWithChild() {
     [orgId],
   );
   await seed(
-    `insert into app_users (id, org_id, full_name, role, telegram_id)
-     values ($1, $2, 'Owner', 'owner', $3)`,
-    [managerId, orgId, Math.floor(Math.random() * 1e9)],
+    `insert into "user" (id, name, email, "emailVerified", "fullName", "appRole", "orgId", "telegramId", "isActive")
+     values ($1, 'Owner', $2, true, 'Owner', 'owner', $3, $4, true)`,
+    [managerId, `owner-${managerId}@test.local`, orgId, String(Math.floor(Math.random() * 1e9))],
   );
   await seed(
     `insert into children (id, org_id, full_name) values ($1, $2, 'Test Child')`,
@@ -67,14 +67,19 @@ describe.runIf(dbAvailable)("T6 — tenant isolation", () => {
     expect(ownRows.rows).toHaveLength(1);
   });
 
-  it("org A cannot read org B's app_users or organizations rows", async () => {
+  it("org A cannot read org B's user or organizations rows", async () => {
     const a = await seedOrgWithChild();
     const b = await seedOrgWithChild();
 
-    const users = await withTenant(a.managerClaims, (client) =>
-      client.query("select id from app_users where org_id = $1", [b.orgId]),
-    );
-    expect(users.rows).toHaveLength(0);
+    // "user" (TZ v2 §5.3, 0014_better_auth_rls.sql) has RLS enabled with
+    // zero policies and no table-level grant to `authenticated` at all —
+    // a stronger guarantee than the usual "RLS filters it to zero rows":
+    // the query is rejected outright rather than merely returning nothing.
+    await expect(
+      withTenant(a.managerClaims, (client) =>
+        client.query('select id from "user" where "orgId" = $1', [b.orgId]),
+      ),
+    ).rejects.toThrow(/permission denied/i);
 
     const orgs = await withTenant(a.managerClaims, (client) =>
       client.query("select id from organizations where id = $1", [b.orgId]),
@@ -96,8 +101,9 @@ describe.runIf(dbAvailable)("T7 — teacher sees only their own group", () => {
       orgId,
     ]);
     await seed(
-      `insert into app_users (id, org_id, full_name, role, pin_hash) values ($1, $2, 'Teacher', 'teacher', 'x')`,
-      [teacherId, orgId],
+      `insert into "user" (id, name, email, "emailVerified", "fullName", "appRole", "orgId", "pinHash", "isActive")
+       values ($1, 'Teacher', $2, true, 'Teacher', 'teacher', $3, 'x', true)`,
+      [teacherId, `teacher-${teacherId}@test.local`, orgId],
     );
     await seed(`insert into groups (id, org_id, name, teacher_id) values ($1, $2, 'A', $3)`, [
       groupAId,

@@ -32,8 +32,9 @@ async function seedOrgChildDay() {
 
   await seed(`insert into organizations (id, name, org_type) values ($1, 'Test', 'oilaviy')`, [orgId]);
   await seed(
-    `insert into app_users (id, org_id, full_name, role, telegram_id) values ($1, $2, 'Owner', 'owner', $3)`,
-    [managerId, orgId, Math.floor(Math.random() * 1e9)],
+    `insert into "user" (id, name, email, "emailVerified", "fullName", "appRole", "orgId", "telegramId", "isActive")
+     values ($1, 'Owner', $2, true, 'Owner', 'owner', $3, $4, true)`,
+    [managerId, `owner-${managerId}@test.local`, orgId, String(Math.floor(Math.random() * 1e9))],
   );
   await seed(`insert into children (id, org_id, full_name) values ($1, $2, 'Child')`, [childId, orgId]);
   await seed(`insert into attendance_days (id, org_id, day_date) values ($1, $2, current_date)`, [
