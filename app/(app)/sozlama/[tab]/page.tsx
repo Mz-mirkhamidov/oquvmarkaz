@@ -10,12 +10,15 @@ import { OrgSettingsTab } from "@/components/settings/OrgSettingsTab";
 import { GroupsTab } from "@/components/settings/GroupsTab";
 import { TeachersTab } from "@/components/settings/TeachersTab";
 import { ParentsTab } from "@/components/settings/ParentsTab";
+import { DevicesTab } from "@/components/settings/DevicesTab";
+import { SecurityTab } from "@/components/settings/SecurityTab";
 
 const TABS = [
   { slug: "bogcha", label: "Bog'cha" },
   { slug: "guruhlar", label: "Guruhlar" },
   { slug: "xodimlar", label: "Xodimlar" },
   { slug: "qurilmalar", label: "Qurilmalar" },
+  { slug: "xavfsizlik", label: "Xavfsizlik" },
   { slug: "ota-onalar", label: "Ota-onalar" },
   { slug: "obuna", label: "Obuna" },
 ] as const;
@@ -50,8 +53,10 @@ export default function SozlamaTabPage({ params }: PageProps) {
       {tab === "bogcha" && <OrgSettingsTab />}
       {tab === "guruhlar" && <GroupsTab />}
       {tab === "xodimlar" && <TeachersTab />}
+      {tab === "qurilmalar" && <DevicesTab />}
+      {tab === "xavfsizlik" && <SecurityTab />}
       {tab === "ota-onalar" && <ParentsTab />}
-      {(tab === "qurilmalar" || tab === "obuna") && (
+      {tab === "obuna" && (
         <p className="text-sm text-text-2">Bu bo&apos;lim keyingi bosqichda qo&apos;shiladi.</p>
       )}
     </div>
