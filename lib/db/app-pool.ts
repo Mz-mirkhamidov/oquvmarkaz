@@ -1,6 +1,6 @@
 import "server-only";
 import { Pool } from "pg";
-import { Kysely, PostgresDialect } from "kysely";
+import { Kysely, PostgresDialect, type Generated } from "kysely";
 
 import { env } from "@/lib/env";
 
@@ -11,7 +11,7 @@ import { env } from "@/lib/env";
  * path (lib/db/admin.ts, lib/db/server.ts) — out of this rebuild's scope.
  */
 export interface DevicesTable {
-  id: string;
+  id: Generated<string>;
   org_id: string;
   label: string | null;
   secret_hash: string;
@@ -20,9 +20,9 @@ export interface DevicesTable {
   bound_at: Date | null;
   last_seen_at: Date | null;
   user_agent: string | null;
-  is_blocked: boolean;
+  is_blocked: Generated<boolean>;
   created_by: string | null;
-  created_at: Date;
+  created_at: Generated<Date>;
 }
 
 export interface AppDatabase {

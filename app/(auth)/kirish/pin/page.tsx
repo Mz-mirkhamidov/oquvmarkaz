@@ -2,24 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChevronLeft, Loader2, WifiOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PinPad } from "@/components/auth/PinPad";
 import { apiGet, apiPost, ApiClientError } from "@/lib/api/client";
-import { getBoundOrgSlug } from "@/lib/device";
 
 interface Teacher {
   id: string;
   full_name: string;
 }
 
-type Screen = "loading" | "no_org" | "empty" | "error" | "ready";
+type Screen = "loading" | "no_device" | "device_blocked" | "empty" | "error" | "ready";
 
 export default function PinLoginPage() {
   const router = useRouter();
   const [screen, setScreen] = useState<Screen>("loading");
-  const [orgSlug, setOrgSlug] = useState<string | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [selected, setSelected] = useState<Teacher | null>(null);
   const [pinError, setPinError] = useState<string | null>(null);
@@ -30,31 +29,24 @@ export default function PinLoginPage() {
     let cancelled = false;
 
     async function run() {
-      // Yield once so this stays past React's "no synchronous setState in
-      // an effect" check — we're reading localStorage, an external
-      // system, same as the network call below.
-      await Promise.resolve();
-      if (cancelled) return;
-
-      const slug = getBoundOrgSlug();
-      if (!slug) {
-        setScreen("no_org");
-        return;
-      }
-      setOrgSlug(slug);
-
       if (!navigator.onLine) {
         setScreen("error");
         return;
       }
-
       try {
-        const data = await apiGet<Teacher[]>(`/api/org/${slug}/teachers`);
+        const data = await apiGet<Teacher[]>("/api/auth/device/teachers");
         if (cancelled) return;
         setTeachers(data);
         setScreen(data.length === 0 ? "empty" : "ready");
-      } catch {
-        if (!cancelled) setScreen("error");
+      } catch (err) {
+        if (cancelled) return;
+        if (err instanceof ApiClientError && err.code === "NO_DEVICE") {
+          setScreen("no_device");
+        } else if (err instanceof ApiClientError && err.code === "DEVICE_BLOCKED") {
+          setScreen("device_blocked");
+        } else {
+          setScreen("error");
+        }
       }
     }
 
@@ -65,15 +57,11 @@ export default function PinLoginPage() {
   }, []);
 
   async function handlePin(pin: string) {
-    if (!selected || !orgSlug) return;
+    if (!selected) return;
     setSubmitting(true);
     setPinError(null);
     try {
-      await apiPost("/api/auth/pin/sign-in", {
-        org_slug: orgSlug,
-        user_id: selected.id,
-        pin,
-      });
+      await apiPost("/api/auth/pin/sign-in", { user_id: selected.id, pin });
       router.push("/davomat");
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -102,11 +90,25 @@ export default function PinLoginPage() {
     );
   }
 
-  if (screen === "no_org") {
+  if (screen === "no_device") {
     return (
       <EmptyNotice
         title="Bu qurilma hali bog'chaga bog'lanmagan"
-        description="Rahbardan shu planshet uchun havola yoki QR-kodni so'rang."
+        description="Rahbardan shu planshet uchun bog'lash kodini so'rang."
+        action={
+          <Button asChild variant="secondary">
+            <Link href="/qurilma">Kodni kiritish</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (screen === "device_blocked") {
+    return (
+      <EmptyNotice
+        title="Bu qurilma bloklangan"
+        description="Rahbarga murojaat qiling."
       />
     );
   }

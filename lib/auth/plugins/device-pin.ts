@@ -5,18 +5,17 @@ import { setSessionCookie } from "better-auth/cookies";
 import { z } from "zod";
 
 import { authPool } from "@/lib/db/auth-pool";
-import { adminDb } from "@/lib/db/admin";
 import { allow } from "@/lib/auth/rate-limit";
 import { logAuthEvent } from "@/lib/auth/events";
 import { verifyPin, nextLockout, MAX_PIN_ATTEMPTS } from "@/lib/auth/pin-hash";
 import { authEndpointError } from "@/lib/auth/endpoint-response";
+import { getBoundDevice, touchDeviceLastSeen } from "@/lib/auth/device-cookie";
 
 /**
  * TZ v2 §4.3, §7 — tarbiyachi PIN sign-in against the new `"user"` table
- * (appRole='teacher'). Per-user lockout (failedPinCount/lockedUntil) is
- * implemented; the device bind-code + cookie half of §4.3 (devices table,
- * DEVICE_BLOCKED) is a tracked follow-up, not wired in yet — see
- * app/(auth)/kirish/pin/page.tsx.
+ * (appRole='teacher'), gated by the device cookie (lib/auth/device-cookie.ts):
+ * no bound device → NO_DEVICE, blocked device → DEVICE_BLOCKED. The org
+ * comes from the device, not a client-supplied slug.
  */
 export const devicePin = () =>
   ({
@@ -27,7 +26,6 @@ export const devicePin = () =>
         {
           method: "POST",
           body: z.object({
-            org_slug: z.string().min(1),
             user_id: z.string().min(1),
             pin: z.string().regex(/^\d{4}$/),
           }),
@@ -40,13 +38,20 @@ export const devicePin = () =>
             return ctx.json(authEndpointError("RATE_LIMITED"), { status: 429 });
           }
 
-          const { data: org } = await adminDb()
-            .from("organizations")
-            .select("id")
-            .eq("slug", ctx.body.org_slug)
-            .maybeSingle();
-          if (!org) {
-            return ctx.json(authEndpointError("PIN_WRONG"), { status: 401 });
+          const device = await getBoundDevice();
+          if (!device) {
+            return ctx.json(authEndpointError("NO_DEVICE"), { status: 401 });
+          }
+          if (device.isBlocked) {
+            await logAuthEvent({
+              code: "DEVICE_BLOCKED",
+              stage: "pin",
+              ok: false,
+              orgId: device.orgId,
+              deviceId: device.id,
+              ip,
+            });
+            return ctx.json(authEndpointError("DEVICE_BLOCKED"), { status: 403 });
           }
 
           const pool = authPool();
@@ -60,7 +65,7 @@ export const devicePin = () =>
             `select id, "pinHash", "failedPinCount", "lockedUntil", "isActive"
                from "user"
               where id = $1 and "orgId" = $2 and "appRole" = 'teacher'`,
-            [ctx.body.user_id, org.id],
+            [ctx.body.user_id, device.orgId],
           );
           const teacher = rows[0];
           if (!teacher || !teacher.pinHash) {
@@ -72,6 +77,8 @@ export const devicePin = () =>
               stage: "pin",
               ok: false,
               userId: teacher.id,
+              orgId: device.orgId,
+              deviceId: device.id,
               ip,
             });
             return ctx.json(authEndpointError("USER_DISABLED"), { status: 403 });
@@ -110,10 +117,21 @@ export const devicePin = () =>
           if (!user) {
             return ctx.json(authEndpointError("DB_ERROR"), { status: 500 });
           }
-          const session = await ctx.context.internalAdapter.createSession(user.id);
+          const session = await ctx.context.internalAdapter.createSession(user.id, undefined, {
+            deviceId: device.id,
+          });
           await setSessionCookie(ctx, { session, user });
+          await touchDeviceLastSeen(device.id);
 
-          await logAuthEvent({ code: "LOGIN_OK", stage: "pin", ok: true, userId: user.id, ip });
+          await logAuthEvent({
+            code: "LOGIN_OK",
+            stage: "pin",
+            ok: true,
+            userId: user.id,
+            orgId: device.orgId,
+            deviceId: device.id,
+            ip,
+          });
           return ctx.json({ ok: true as const, data: {} });
         },
       ),

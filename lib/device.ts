@@ -1,9 +1,13 @@
 "use client";
 
 const DEVICE_KEY = "qalqon:device_key";
-const ORG_SLUG_KEY = "qalqon:org_slug";
 
-/** Stable per-browser device identifier (TZ §8.6 devices.device_key) — survives reloads, not tab-scoped. */
+/**
+ * Stable per-browser identifier used only by the offline sync outbox
+ * (lib/offline/sync.ts) to label ops client-side — unrelated to the
+ * server-verified device identity in lib/auth/device-cookie.ts (TZ v2
+ * §4.3's bind code + httpOnly `qalqon_device` cookie).
+ */
 export function getOrCreateDeviceKey(): string {
   let key = localStorage.getItem(DEVICE_KEY);
   if (!key) {
@@ -11,13 +15,4 @@ export function getOrCreateDeviceKey(): string {
     localStorage.setItem(DEVICE_KEY, key);
   }
   return key;
-}
-
-/** The org a shared classroom tablet is bound to, set once via /kirish/pin/[slug]. */
-export function getBoundOrgSlug(): string | null {
-  return localStorage.getItem(ORG_SLUG_KEY);
-}
-
-export function setBoundOrgSlug(slug: string) {
-  localStorage.setItem(ORG_SLUG_KEY, slug);
 }

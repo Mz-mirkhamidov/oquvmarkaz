@@ -2,23 +2,18 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { use } from "react";
 
-import { setBoundOrgSlug } from "@/lib/device";
-
-interface PageProps {
-  params: Promise<{ slug: string }>;
-}
-
-/** The link/QR a bog'cha bookmarks on its shared tablet — binds it to an org once, then redirects. */
-export default function BindDevicePage({ params }: PageProps) {
-  const { slug } = use(params);
+/**
+ * TZ v2 §4.3 replaced org-slug device binding with a manager-issued bind
+ * code (/qurilma). Old bookmarked/shared links to this URL still redirect
+ * somewhere useful instead of 404ing.
+ */
+export default function LegacyBindDevicePage() {
   const router = useRouter();
 
   useEffect(() => {
-    setBoundOrgSlug(slug);
-    router.replace("/kirish/pin");
-  }, [slug, router]);
+    router.replace("/qurilma");
+  }, [router]);
 
   return null;
 }
