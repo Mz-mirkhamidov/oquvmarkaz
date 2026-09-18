@@ -2,7 +2,7 @@ import "server-only";
 import { headers } from "next/headers";
 import type { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { signPostgrestBearer } from "@/lib/db/postgrest-bridge";
 import { apiErr, type ApiErr } from "@/lib/api/response";
 import { AUTH_MESSAGES } from "@/lib/auth/errors";
@@ -28,7 +28,7 @@ type GuardResult =
 
 /** Every authenticated route starts with this — 401s consistently otherwise. */
 export async function requireAuth(): Promise<GuardResult> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuth().api.getSession({ headers: await headers() });
   if (!session) {
     return { ok: false, response: apiErr(401, "NO_SESSION", AUTH_MESSAGES.NO_SESSION) };
   }

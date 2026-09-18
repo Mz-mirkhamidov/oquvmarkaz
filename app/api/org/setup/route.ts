@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 
 import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { orgRegisterSchema } from "@/lib/schemas/org";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { authPool } from "@/lib/db/auth-pool";
 import { adminDb } from "@/lib/db/admin";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -30,7 +30,7 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
     );
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuth().api.getSession({ headers: await headers() });
   if (!session) {
     return apiErr(401, "NO_SESSION", AUTH_MESSAGES.NO_SESSION);
   }

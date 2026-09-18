@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 
 import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/db/admin";
 import { AUTH_MESSAGES } from "@/lib/auth/errors";
 import type { UserRole } from "@/lib/db/types";
@@ -9,7 +9,7 @@ import type { UserRole } from "@/lib/db/types";
 export const runtime = "nodejs";
 
 export const GET = withApiErrorBoundary(async () => {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuth().api.getSession({ headers: await headers() });
   if (!session) return apiErr(401, "NO_SESSION", AUTH_MESSAGES.NO_SESSION);
 
   const user = session.user as typeof session.user & {
