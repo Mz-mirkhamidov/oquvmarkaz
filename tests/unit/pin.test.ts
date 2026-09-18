@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 
-import { hashPin, verifyPin, nextLockout, isValidPinFormat, MAX_PIN_ATTEMPTS } from "@/lib/auth/pin";
+import { hashPin, verifyPin, nextLockout, isValidPinFormat, MAX_PIN_ATTEMPTS } from "@/lib/auth/pin-hash";
 
 describe("PIN format", () => {
   it("accepts exactly 4 digits", () => {
@@ -20,8 +20,8 @@ describe("PIN format", () => {
 describe("PIN hashing", () => {
   it("verifies a correct PIN and rejects a wrong one", async () => {
     const hash = await hashPin("4821");
-    expect(await verifyPin(hash, "4821")).toBe(true);
-    expect(await verifyPin(hash, "0000")).toBe(false);
+    expect(await verifyPin("4821", hash)).toBe(true);
+    expect(await verifyPin("0000", hash)).toBe(false);
   });
 });
 

@@ -29,15 +29,11 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   }
 
   const admin = adminDb();
-  const { data: device } = await admin
-    .from("devices")
-    .select("id, is_blocked")
-    .eq("org_id", orgId)
-    .eq("device_key", parsed.data.device_key)
-    .maybeSingle();
-  if (device?.is_blocked) {
-    return apiErr(403, "DEVICE_BLOCKED", "Bu qurilma bloklangan.");
-  }
+  // TZ v2 §4.4/§5.2 replaced the client-generated `device_key` this used
+  // to look up (0001_init.sql) with a server-issued bind code + cookie —
+  // not yet wired into the offline sync path, so device identification/
+  // blocking here is a tracked gap rather than dropped silently.
+  let device: { id: string } | undefined;
 
   const db = requestDb(session.auth.token);
   const results: SyncOpResult[] = [];

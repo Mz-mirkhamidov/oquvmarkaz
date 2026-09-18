@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiGet, apiPost, ApiClientError } from "@/lib/api/client";
-import { takePendingTelegramAuth } from "@/lib/telegram/pending-auth";
 import type { OrgType } from "@/lib/db/types";
 
 type Step = 1 | 2 | 3 | 4;
@@ -125,17 +124,9 @@ function OrgStep({ onDone }: { onDone: () => void }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-
-    const initData = takePendingTelegramAuth();
-    if (!initData) {
-      setError("Telegram orqali kirish muddati tugagan. Qaytadan kiring.");
-      return;
-    }
-
     setSubmitting(true);
     try {
       await apiPost("/api/org/setup", {
-        initData,
         org: {
           name,
           org_type: orgType,

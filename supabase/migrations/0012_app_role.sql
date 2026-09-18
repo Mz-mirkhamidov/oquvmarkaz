@@ -27,6 +27,12 @@ grant usage, select on all sequences in schema public to qalqon_app;
 alter default privileges in schema public
   grant select, insert, update, delete on tables to qalqon_app;
 
+-- Postgres requires the *new* owner to hold CREATE on the containing
+-- schema, not just USAGE (discovered empirically against this project:
+-- `postgres` here isn't a member of `pg_database_owner`, so it can't just
+-- hand out ownership-equivalent rights implicitly).
+grant create on schema public to qalqon_auth;
+
 alter table "user" owner to qalqon_auth;
 alter table "session" owner to qalqon_auth;
 alter table "account" owner to qalqon_auth;
@@ -39,6 +45,10 @@ alter table login_tokens enable row level security;
 alter table rate_limits  enable row level security;
 alter table auth_events  enable row level security;
 -- No policies on the three above → qalqon_app cannot see them at all.
+
+-- 0003_auth.sql revoked EXECUTE from public/authenticated/anon on this
+-- function; qalqon_auth (lib/auth/rate-limit.ts) needs it back explicitly.
+grant execute on function hit_rate_limit(text, int, int) to qalqon_auth;
 
 -- ---------------------------------------------------------------------------
 -- devices: replace the old device_key-era policies (0002_rls.sql) with the

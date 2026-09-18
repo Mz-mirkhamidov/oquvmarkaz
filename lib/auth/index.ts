@@ -5,6 +5,8 @@ import { customSession } from "better-auth/plugins";
 import { env } from "@/lib/env";
 import { authPool } from "@/lib/db/auth-pool";
 import { adminDb } from "@/lib/db/admin";
+import { telegramLogin } from "@/lib/auth/plugins/telegram-login";
+import { devicePin } from "@/lib/auth/plugins/device-pin";
 
 /**
  * TZ v2 §6 — the sole session/identity layer. Postgres (via `authPool`,
@@ -73,6 +75,8 @@ export const auth = betterAuth({
   rateLimit: { enabled: true, window: 60, max: 30 },
 
   plugins: [
+    telegramLogin(),
+    devicePin(),
     customSession(async ({ user, session }) => {
       // customSession() can't see this config's own additionalFields (the
       // inferred type is circular: this array is *part of* the config that

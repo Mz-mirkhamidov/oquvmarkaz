@@ -3,26 +3,35 @@ import type { NextRequest } from "next/server";
 import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { teacherCreateSchema } from "@/lib/schemas/teacher";
 import { requireManager } from "@/lib/auth/guard";
-import { requestDb } from "@/lib/db/server";
-import { hashPin } from "@/lib/auth/pin";
+import { authPool } from "@/lib/db/auth-pool";
+import { hashPin } from "@/lib/auth/pin-hash";
 import { logAudit } from "@/lib/audit";
+import { AUTH_MESSAGES } from "@/lib/auth/errors";
 
 export const runtime = "nodejs";
+
+interface TeacherRow {
+  id: string;
+  full_name: string | null;
+  role: string | null;
+  is_active: boolean | null;
+  last_seen_at: string | null;
+  created_at: string;
+}
 
 export const GET = withApiErrorBoundary(async () => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
-  const db = requestDb(session.auth.token);
-  const { data, error } = await db
-    .from("app_users")
-    .select("id, full_name, role, is_active, last_seen_at, created_at")
-    .eq("org_id", session.auth.claims.org_id)
-    .eq("role", "teacher")
-    .order("full_name", { ascending: true });
-
-  if (error) return apiErr(500, "DB_ERROR", "Hozir ulanib bo'lmadi.");
-  return apiOk(data);
+  const { rows } = await authPool().query<TeacherRow>(
+    `select id, "fullName" as full_name, "appRole" as role, "isActive" as is_active,
+            null as last_seen_at, "createdAt" as created_at
+       from "user"
+      where "orgId" = $1 and "appRole" = 'teacher'
+      order by "fullName" asc`,
+    [session.auth.claims.org_id],
+  );
+  return apiOk(rows);
 });
 
 export const POST = withApiErrorBoundary(async (request: NextRequest) => {
@@ -36,32 +45,30 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   }
 
   const pinHash = await hashPin(parsed.data.pin);
-  const db = requestDb(session.auth.token);
 
-  const { data: teacher, error } = await db
-    .from("app_users")
-    .insert({
-      org_id: session.auth.claims.org_id,
-      full_name: parsed.data.full_name,
-      role: "teacher",
-      pin_hash: pinHash,
-      pin_set_at: new Date().toISOString(),
-    })
-    .select("id, full_name, role, is_active, created_at")
-    .single();
-
-  if (error || !teacher) return apiErr(500, "DB_ERROR", "Tarbiyachini qo'shib bo'lmadi.");
+  const { rows } = await authPool().query<TeacherRow>(
+    `insert into "user" (email, name, "emailVerified", "fullName", "appRole", "orgId", "pinHash", "isActive", "failedPinCount")
+     values ($1, $2, true, $2, 'teacher', $3, $4, true, 0)
+     returning id, "fullName" as full_name, "appRole" as role, "isActive" as is_active, "createdAt" as created_at`,
+    [teacherEmail(), parsed.data.full_name, session.auth.claims.org_id, pinHash],
+  );
+  const teacher = rows[0];
+  if (!teacher) return apiErr(500, "DB_ERROR", AUTH_MESSAGES.DB_ERROR);
 
   await logAudit({
     orgId: session.auth.claims.org_id,
     actorId: session.auth.claims.sub,
     actorRole: session.auth.claims.user_role,
     action: "teacher.create",
-    entity: "app_users",
+    entity: "user",
     entityId: teacher.id,
-    after: { ...teacher, pin_hash: "[redacted]" },
+    after: { ...teacher },
     request,
   });
 
   return apiOk(teacher);
 });
+
+function teacherEmail(): string {
+  return `teacher-${crypto.randomUUID()}@qalqon.local`;
+}

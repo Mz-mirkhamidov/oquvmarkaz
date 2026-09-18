@@ -1,7 +1,7 @@
 /**
  * Generated from the live Qalqon Supabase project (mxxsmgkpdgdexodvdpzb)
  * via mcp__Supabase__generate_typescript_types after applying migrations
- * 0001-0007. Regenerate the same way after any future migration:
+ * 0001-0012. Regenerate the same way after any future migration:
  *   mcp__Supabase__generate_typescript_types({ project_id: "mxxsmgkpdgdexodvdpzb" })
  * and paste the `Database` type (plus helpers) back in below.
  */
@@ -15,66 +15,65 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
-      app_users: {
+      account: {
         Row: {
-          created_at: string
-          failed_pin_count: number
-          full_name: string
+          accessToken: string | null
+          accessTokenExpiresAt: string | null
+          accountId: string
+          createdAt: string
           id: string
-          is_active: boolean
-          last_seen_at: string | null
-          locked_until: string | null
-          org_id: string
-          pin_hash: string | null
-          pin_set_at: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          telegram_id: number | null
-          telegram_username: string | null
-          updated_at: string
+          idToken: string | null
+          password: string | null
+          providerId: string
+          refreshToken: string | null
+          refreshTokenExpiresAt: string | null
+          scope: string | null
+          updatedAt: string
+          userId: string
         }
         Insert: {
-          created_at?: string
-          failed_pin_count?: number
-          full_name: string
+          accessToken?: string | null
+          accessTokenExpiresAt?: string | null
+          accountId: string
+          createdAt?: string
           id?: string
-          is_active?: boolean
-          last_seen_at?: string | null
-          locked_until?: string | null
-          org_id: string
-          pin_hash?: string | null
-          pin_set_at?: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          telegram_id?: number | null
-          telegram_username?: string | null
-          updated_at?: string
+          idToken?: string | null
+          password?: string | null
+          providerId: string
+          refreshToken?: string | null
+          refreshTokenExpiresAt?: string | null
+          scope?: string | null
+          updatedAt: string
+          userId: string
         }
         Update: {
-          created_at?: string
-          failed_pin_count?: number
-          full_name?: string
+          accessToken?: string | null
+          accessTokenExpiresAt?: string | null
+          accountId?: string
+          createdAt?: string
           id?: string
-          is_active?: boolean
-          last_seen_at?: string | null
-          locked_until?: string | null
-          org_id?: string
-          pin_hash?: string | null
-          pin_set_at?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          telegram_id?: number | null
-          telegram_username?: string | null
-          updated_at?: string
+          idToken?: string | null
+          password?: string | null
+          providerId?: string
+          refreshToken?: string | null
+          refreshTokenExpiresAt?: string | null
+          scope?: string | null
+          updatedAt?: string
+          userId?: string
         }
         Relationships: [
           {
-            foreignKeyName: "app_users_org_id_fkey"
-            columns: ["org_id"]
+            foreignKeyName: "account_userId_fkey"
+            columns: ["userId"]
             isOneToOne: false
-            referencedRelation: "organizations"
+            referencedRelation: "user"
             referencedColumns: ["id"]
           },
         ]
@@ -136,24 +135,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "attendance_days_closed_by_fkey"
-            columns: ["closed_by"]
-            isOneToOne: false
-            referencedRelation: "app_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "attendance_days_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_days_reopened_by_fkey"
-            columns: ["reopened_by"]
-            isOneToOne: false
-            referencedRelation: "app_users"
             referencedColumns: ["id"]
           },
         ]
@@ -300,13 +285,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "attendance_records_marked_by_fkey"
-            columns: ["marked_by"]
-            isOneToOne: false
-            referencedRelation: "app_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "attendance_records_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -333,7 +311,7 @@ export type Database = {
           entity: string
           entity_id: string | null
           id: number
-          ip: unknown | null
+          ip: unknown
           org_id: string | null
           user_agent: string | null
         }
@@ -347,7 +325,7 @@ export type Database = {
           entity: string
           entity_id?: string | null
           id?: number
-          ip?: unknown | null
+          ip?: unknown
           org_id?: string | null
           user_agent?: string | null
         }
@@ -361,9 +339,54 @@ export type Database = {
           entity?: string
           entity_id?: string | null
           id?: number
-          ip?: unknown | null
+          ip?: unknown
           org_id?: string | null
           user_agent?: string | null
+        }
+        Relationships: []
+      }
+      auth_events: {
+        Row: {
+          at: string
+          code: string
+          detail: Json | null
+          device_id: string | null
+          id: number
+          ip: unknown
+          ok: boolean
+          org_id: string | null
+          stage: string
+          telegram_id: number | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          at?: string
+          code: string
+          detail?: Json | null
+          device_id?: string | null
+          id?: number
+          ip?: unknown
+          ok: boolean
+          org_id?: string | null
+          stage: string
+          telegram_id?: number | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          at?: string
+          code?: string
+          detail?: Json | null
+          device_id?: string | null
+          id?: number
+          ip?: unknown
+          ok?: boolean
+          org_id?: string | null
+          stage?: string
+          telegram_id?: number | null
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -449,44 +472,49 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "children_photo_consent_by_fkey"
-            columns: ["photo_consent_by"]
-            isOneToOne: false
-            referencedRelation: "app_users"
-            referencedColumns: ["id"]
-          },
         ]
       }
       devices: {
         Row: {
+          bind_code: string | null
+          bind_expires: string | null
+          bound_at: string | null
           created_at: string
-          device_key: string
+          created_by: string | null
           id: string
           is_blocked: boolean
           label: string | null
           last_seen_at: string | null
           org_id: string
+          secret_hash: string
           user_agent: string | null
         }
         Insert: {
+          bind_code?: string | null
+          bind_expires?: string | null
+          bound_at?: string | null
           created_at?: string
-          device_key: string
+          created_by?: string | null
           id?: string
           is_blocked?: boolean
           label?: string | null
           last_seen_at?: string | null
           org_id: string
+          secret_hash: string
           user_agent?: string | null
         }
         Update: {
+          bind_code?: string | null
+          bind_expires?: string | null
+          bound_at?: string | null
           created_at?: string
-          device_key?: string
+          created_by?: string | null
           id?: string
           is_blocked?: boolean
           label?: string | null
           last_seen_at?: string | null
           org_id?: string
+          secret_hash?: string
           user_agent?: string | null
         }
         Relationships: [
@@ -586,13 +614,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "disputes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "app_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "disputes_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -640,14 +661,49 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "groups_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
-            referencedRelation: "app_users"
-            referencedColumns: ["id"]
-          },
         ]
+      }
+      login_tokens: {
+        Row: {
+          chat_id: number
+          consumed_at: string | null
+          consumed_ip: unknown
+          created_at: string
+          created_ip: unknown
+          expires_at: string
+          first_name: string | null
+          id: string
+          telegram_id: number
+          telegram_username: string | null
+          token_hash: string
+        }
+        Insert: {
+          chat_id: number
+          consumed_at?: string | null
+          consumed_ip?: unknown
+          created_at?: string
+          created_ip?: unknown
+          expires_at: string
+          first_name?: string | null
+          id?: string
+          telegram_id: number
+          telegram_username?: string | null
+          token_hash: string
+        }
+        Update: {
+          chat_id?: number
+          consumed_at?: string | null
+          consumed_ip?: unknown
+          created_at?: string
+          created_ip?: unknown
+          expires_at?: string
+          first_name?: string | null
+          id?: string
+          telegram_id?: number
+          telegram_username?: string | null
+          token_hash?: string
+        }
+        Relationships: []
       }
       notification_outbox: {
         Row: {
@@ -880,57 +936,46 @@ export type Database = {
         }
         Relationships: []
       }
-      refresh_tokens: {
+      session: {
         Row: {
-          created_at: string
-          device_id: string | null
-          expires_at: string
+          createdAt: string
+          deviceId: string | null
+          expiresAt: string
           id: string
-          replaced_by: string | null
-          revoked_at: string | null
-          token_hash: string
-          user_id: string
+          ipAddress: string | null
+          token: string
+          updatedAt: string
+          userAgent: string | null
+          userId: string
         }
         Insert: {
-          created_at?: string
-          device_id?: string | null
-          expires_at: string
+          createdAt?: string
+          deviceId?: string | null
+          expiresAt: string
           id?: string
-          replaced_by?: string | null
-          revoked_at?: string | null
-          token_hash: string
-          user_id: string
+          ipAddress?: string | null
+          token: string
+          updatedAt: string
+          userAgent?: string | null
+          userId: string
         }
         Update: {
-          created_at?: string
-          device_id?: string | null
-          expires_at?: string
+          createdAt?: string
+          deviceId?: string | null
+          expiresAt?: string
           id?: string
-          replaced_by?: string | null
-          revoked_at?: string | null
-          token_hash?: string
-          user_id?: string
+          ipAddress?: string | null
+          token?: string
+          updatedAt?: string
+          userAgent?: string | null
+          userId?: string
         }
         Relationships: [
           {
-            foreignKeyName: "refresh_tokens_device_id_fkey"
-            columns: ["device_id"]
+            foreignKeyName: "session_userId_fkey"
+            columns: ["userId"]
             isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "refresh_tokens_replaced_by_fkey"
-            columns: ["replaced_by"]
-            isOneToOne: false
-            referencedRelation: "refresh_tokens"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "refresh_tokens_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "app_users"
+            referencedRelation: "user"
             referencedColumns: ["id"]
           },
         ]
@@ -976,13 +1021,6 @@ export type Database = {
           result?: Database["public"]["Enums"]["state_result"]
         }
         Relationships: [
-          {
-            foreignKeyName: "state_checks_checked_by_fkey"
-            columns: ["checked_by"]
-            isOneToOne: false
-            referencedRelation: "app_users"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "state_checks_child_id_fkey"
             columns: ["child_id"]
@@ -1036,10 +1074,92 @@ export type Database = {
         }
         Relationships: []
       }
+      user: {
+        Row: {
+          appRole: string | null
+          createdAt: string
+          email: string
+          emailVerified: boolean
+          failedPinCount: number | null
+          fullName: string | null
+          id: string
+          image: string | null
+          isActive: boolean | null
+          lockedUntil: string | null
+          name: string
+          orgId: string | null
+          pinHash: string | null
+          telegramId: string | null
+          telegramUsername: string | null
+          updatedAt: string
+        }
+        Insert: {
+          appRole?: string | null
+          createdAt?: string
+          email: string
+          emailVerified: boolean
+          failedPinCount?: number | null
+          fullName?: string | null
+          id?: string
+          image?: string | null
+          isActive?: boolean | null
+          lockedUntil?: string | null
+          name: string
+          orgId?: string | null
+          pinHash?: string | null
+          telegramId?: string | null
+          telegramUsername?: string | null
+          updatedAt?: string
+        }
+        Update: {
+          appRole?: string | null
+          createdAt?: string
+          email?: string
+          emailVerified?: boolean
+          failedPinCount?: number | null
+          fullName?: string | null
+          id?: string
+          image?: string | null
+          isActive?: boolean | null
+          lockedUntil?: string | null
+          name?: string
+          orgId?: string | null
+          pinHash?: string | null
+          telegramId?: string | null
+          telegramUsername?: string | null
+          updatedAt?: string
+        }
+        Relationships: []
+      }
+      verification: {
+        Row: {
+          createdAt: string
+          expiresAt: string
+          id: string
+          identifier: string
+          updatedAt: string
+          value: string
+        }
+        Insert: {
+          createdAt?: string
+          expiresAt: string
+          id?: string
+          identifier: string
+          updatedAt?: string
+          value: string
+        }
+        Update: {
+          createdAt?: string
+          expiresAt?: string
+          id?: string
+          identifier?: string
+          updatedAt?: string
+          value?: string
+        }
+        Relationships: []
+      }
     }
-    Views: {
-      [_ in never]: never
-    }
+    Views: Record<string, never>
     Functions: {
       auth_org_id: { Args: Record<PropertyKey, never>; Returns: string }
       auth_user_id: { Args: Record<PropertyKey, never>; Returns: string }
@@ -1053,12 +1173,12 @@ export type Database = {
         Args: {
           p_child_id: string
           p_client_marked_at: string
-          p_correction_note?: string | null
+          p_correction_note?: string
           p_day_id: string
-          p_device_id: string | null
+          p_device_id: string
           p_marked_by: string
           p_new_id: string
-          p_note?: string | null
+          p_note?: string
           p_org_id: string
           p_status: Database["public"]["Enums"]["attend_status"]
         }

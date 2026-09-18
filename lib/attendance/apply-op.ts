@@ -136,10 +136,15 @@ async function applyMark(op: Extract<SyncOp, { type: "attendance.mark" }>, ctx: 
     p_child_id: child_id,
     p_status: status,
     p_marked_by: userId,
-    p_device_id: deviceId ?? null,
+    // p_device_id has no SQL default (unlike p_note/p_correction_note
+    // below) so it must always be passed — but the column is nullable;
+    // the generated Args type just doesn't express that. See TZ v2 §4.4 —
+    // devices.deviceId isn't populated on any session yet (bind-code flow
+    // not wired into session creation), so this is always null for now.
+    p_device_id: (deviceId ?? null) as unknown as string,
     p_client_marked_at: op.client_at,
-    p_note: note ?? null,
-    p_correction_note: null,
+    p_note: note ?? undefined,
+    p_correction_note: undefined,
   });
   if (error) {
     if (error.message?.includes("FORBIDDEN")) throw new RejectedOpError("forbidden");
@@ -175,9 +180,9 @@ async function applyCorrect(op: Extract<SyncOp, { type: "attendance.correct" }>,
     p_child_id: child_id,
     p_status: status,
     p_marked_by: userId,
-    p_device_id: deviceId ?? null,
+    p_device_id: (deviceId ?? null) as unknown as string,
     p_client_marked_at: op.client_at,
-    p_note: null,
+    p_note: undefined,
     p_correction_note: correction_note,
   });
   if (error) {

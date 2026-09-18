@@ -1,60 +1,24 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ShieldCheck, Send, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { loadTelegramWebApp } from "@/lib/telegram/webapp";
-import { setPendingTelegramAuth } from "@/lib/telegram/pending-auth";
-import { apiPost, ApiClientError } from "@/lib/api/client";
-
-type Status = "checking" | "authenticating" | "need_setup" | "idle" | "error";
+import { AUTH_MESSAGES, type AuthCode } from "@/lib/auth/errors";
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
 
-export default function KirishPage() {
-  const router = useRouter();
-  const [status, setStatus] = useState<Status>("checking");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+interface PageProps {
+  searchParams: Promise<{ e?: string }>;
+}
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      const webApp = await loadTelegramWebApp();
-      if (cancelled) return;
-
-      if (!webApp?.initData) {
-        setStatus("idle");
-        return;
-      }
-
-      setStatus("authenticating");
-      try {
-        await apiPost("/api/auth/telegram", { initData: webApp.initData });
-        router.push("/panel");
-      } catch (err) {
-        if (err instanceof ApiClientError && err.code === "NOT_REGISTERED") {
-          setPendingTelegramAuth(webApp.initData);
-          router.push("/sozlash");
-          return;
-        }
-        setErrorMessage(
-          err instanceof ApiClientError
-            ? err.message
-            : "Hozir ulanib bo'lmadi. Internetni tekshirib, qayta urinib ko'ring.",
-        );
-        setStatus("error");
-      }
-    }
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+/**
+ * TZ v2 §4.1, §12.1 — no Mini App, no `initData`. The bot hands out a
+ * one-time login link (lib/telegram/bot.ts's /kirish command); this page
+ * only opens the bot. /kirish/t consumes the link once it's clicked.
+ */
+export default async function KirishPage({ searchParams }: PageProps) {
+  const { e } = await searchParams;
+  const errorMessage = e && e in AUTH_MESSAGES ? AUTH_MESSAGES[e as AuthCode] : null;
 
   return (
     <div className="flex flex-col items-center gap-8">
@@ -64,44 +28,32 @@ export default function KirishPage() {
         <CardContent className="flex flex-col gap-4 pt-5">
           <h2 className="text-center text-[18px] font-semibold text-text">Tizimga kirish</h2>
 
-          {status === "checking" || status === "authenticating" ? (
-            <div className="flex flex-col items-center gap-2 py-6 text-text-2">
-              <Loader2 className="size-6 animate-spin" aria-hidden />
-              <p className="text-sm">
-                {status === "authenticating" ? "Tekshirilmoqda..." : "Yuklanmoqda..."}
-              </p>
-            </div>
-          ) : (
-            <>
-              {status === "error" && errorMessage && (
-                <p className="rounded-(--r-md) bg-danger-soft px-3 py-2 text-sm text-danger">
-                  {errorMessage}
-                </p>
-              )}
-
-              <Button asChild size="lg" className="w-full">
-                <a href={BOT_USERNAME ? `https://t.me/${BOT_USERNAME}?startapp=login` : "#"}>
-                  <Send className="size-[18px]" aria-hidden />
-                  Telegram orqali kirish
-                </a>
-              </Button>
-
-              <div className="flex items-center gap-3 text-xs text-text-3">
-                <span className="h-px flex-1 bg-border" />
-                yoki
-                <span className="h-px flex-1 bg-border" />
-              </div>
-
-              <Button
-                size="lg"
-                variant="secondary"
-                className="w-full"
-                onClick={() => router.push("/kirish/pin")}
-              >
-                Tarbiyachiman
-              </Button>
-            </>
+          {errorMessage && (
+            <p className="rounded-(--r-md) bg-danger-soft px-3 py-2 text-sm text-danger">
+              {errorMessage}
+              {e && <span className="ml-1 text-xs text-text-3">({e})</span>}
+            </p>
           )}
+
+          <Button asChild size="lg" className="w-full">
+            <a href={BOT_USERNAME ? `https://t.me/${BOT_USERNAME}?start=web` : "#"}>
+              <Send className="size-[18px]" aria-hidden />
+              Telegram orqali kirish
+            </a>
+          </Button>
+          <p className="text-center text-xs text-text-3">
+            Telegramda botga o&apos;ting va &quot;🔐 Saytga kirish&quot; tugmasini bosing.
+          </p>
+
+          <div className="flex items-center gap-3 text-xs text-text-3">
+            <span className="h-px flex-1 bg-border" />
+            yoki
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <Button asChild size="lg" variant="secondary" className="w-full">
+            <Link href="/kirish/pin">Tarbiyachiman</Link>
+          </Button>
         </CardContent>
       </Card>
 

@@ -7,7 +7,7 @@ import { ChevronLeft, Loader2, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PinPad } from "@/components/auth/PinPad";
 import { apiGet, apiPost, ApiClientError } from "@/lib/api/client";
-import { getBoundOrgSlug, getOrCreateDeviceKey } from "@/lib/device";
+import { getBoundOrgSlug } from "@/lib/device";
 
 interface Teacher {
   id: string;
@@ -69,11 +69,10 @@ export default function PinLoginPage() {
     setSubmitting(true);
     setPinError(null);
     try {
-      await apiPost("/api/auth/pin", {
+      await apiPost("/api/auth/pin/sign-in", {
         org_slug: orgSlug,
         user_id: selected.id,
         pin,
-        device_key: getOrCreateDeviceKey(),
       });
       router.push("/davomat");
     } catch (err) {

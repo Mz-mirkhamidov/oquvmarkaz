@@ -18,11 +18,11 @@ export type OrgSetupInput = z.infer<typeof orgSetupSchema>;
 export const orgUpdateSchema = orgSetupSchema.partial();
 export type OrgUpdateInput = z.infer<typeof orgUpdateSchema>;
 
-// TZ §7.2 lists no separate "register" endpoint — S4's registration wizard
-// (§3.4) goes straight from Telegram login into org setup, so
-// /api/org/setup itself verifies initData and creates the org + owner.
+// TZ v2 §4.2 (X1 fix) — registration now starts from an *already*
+// authenticated session (Better Auth), not a bundled Telegram initData:
+// /sozlash is only reachable once /kirish/t has signed the user in, so
+// this only needs the org fields.
 export const orgRegisterSchema = z.object({
-  initData: z.string().min(1),
   org: orgSetupSchema,
 });
 export type OrgRegisterInput = z.infer<typeof orgRegisterSchema>;
