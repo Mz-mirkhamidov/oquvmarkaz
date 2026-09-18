@@ -28,7 +28,21 @@ type GuardResult =
 
 /** Every authenticated route starts with this — 401s consistently otherwise. */
 export async function requireAuth(): Promise<GuardResult> {
-  const session = await getAuth().api.getSession({ headers: await headers() });
+  let session: Awaited<ReturnType<ReturnType<typeof getAuth>["api"]["getSession"]>>;
+  try {
+    session = await getAuth().api.getSession({ headers: await headers() });
+  } catch (err) {
+    // getSession() itself can throw — a misconfigured/unreachable auth
+    // backend (env(), authPool()'s connection, ...), not just "no
+    // session". Without this, every caller (API routes *and*
+    // app/(app)/layout.tsx, which expects a clean redirect on !ok) sees a
+    // raw unhandled crash instead of a diagnosable error — confirmed via a
+    // real e2e CI run against an environment with no auth env vars at all.
+    // The operator sees the real cause via /api/auth/selftest and this log
+    // line; the visitor just sees "please sign in".
+    console.error("get_session_failed", err);
+    return { ok: false, response: apiErr(500, "CONFIG_ERROR", AUTH_MESSAGES.CONFIG_ERROR) };
+  }
   if (!session) {
     return { ok: false, response: apiErr(401, "NO_SESSION", AUTH_MESSAGES.NO_SESSION) };
   }
