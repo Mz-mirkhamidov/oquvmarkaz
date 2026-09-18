@@ -1,4 +1,4 @@
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { adminDb } from "@/lib/db/admin";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ interface RouteParams {
  * know the org from its URL/localStorage-bound slug. Exposes nothing
  * beyond id + name, deliberately: no PINs, no contact info.
  */
-export async function GET(_request: Request, { params }: RouteParams) {
+export const GET = withApiErrorBoundary(async (_request: Request, { params }: RouteParams) => {
   const { slug } = await params;
 
   const db = adminDb();
@@ -30,4 +30,4 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   if (error) return apiErr(500, "DB_ERROR", "Hozir ulanib bo'lmadi.");
   return apiOk(data);
-}
+});

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireAuth } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { getDayView } from "@/lib/attendance/day-view";
@@ -11,7 +11,7 @@ interface RouteParams {
   params: Promise<{ date: string }>;
 }
 
-export async function GET(_request: Request, { params }: RouteParams) {
+export const GET = withApiErrorBoundary(async (_request: Request, { params }: RouteParams) => {
   const session = await requireAuth();
   if (!session.ok) return session.response;
 
@@ -24,4 +24,4 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const view = await getDayView(db, session.auth.claims.org_id, date);
 
   return apiOk({ ...view, date });
-}
+});

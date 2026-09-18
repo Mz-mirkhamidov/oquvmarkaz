@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiErr } from "@/lib/api/response";
+import { apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { getDisputeEvidence } from "@/lib/disputes/evidence";
@@ -19,7 +19,7 @@ interface RouteParams {
  * one exists. A draft has none yet — render on the fly so the director
  * can preview the bundle before submitting.
  */
-export async function GET(_request: Request, { params }: RouteParams) {
+export const GET = withApiErrorBoundary(async (_request: Request, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -52,4 +52,4 @@ export async function GET(_request: Request, { params }: RouteParams) {
       "Content-Disposition": `inline; filename="dispute-${id}.pdf"`,
     },
   });
-}
+});

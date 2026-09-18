@@ -40,3 +40,29 @@ export function apiErr(
     NextResponse.json({ ok: false, error: { code, message, details } }, { status }),
   ) as NextResponse<ApiErr>;
 }
+
+/**
+ * Every route handler is wrapped in this. Without it, an uncaught
+ * exception (a misconfigured env var, a bug, an upstream outage) falls
+ * through to Next.js's own error handling, which is not guaranteed to
+ * return JSON — the client's `apiFetch` then fails to parse the body and
+ * shows a generic "network error" that hides the real cause. This turns
+ * every unexpected failure into the same clean `ApiErr` shape everything
+ * else on the client already knows how to handle.
+ */
+export function withApiErrorBoundary<Args extends unknown[]>(
+  handler: (...args: Args) => Promise<Response>,
+): (...args: Args) => Promise<Response> {
+  return async (...args: Args) => {
+    try {
+      return await handler(...args);
+    } catch (err) {
+      console.error("unhandled_api_error", err);
+      return apiErr(
+        500,
+        "SERVER_ERROR",
+        "Kutilmagan xatolik yuz berdi. Birozdan keyin qayta urinib ko'ring.",
+      );
+    }
+  };
+}

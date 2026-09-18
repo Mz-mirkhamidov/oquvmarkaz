@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { syncPushSchema } from "@/lib/schemas/sync";
 import type { SyncOpResult } from "@/lib/schemas/sync";
 import { requireAuth } from "@/lib/auth/guard";
@@ -12,7 +12,7 @@ import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const session = await requireAuth();
   if (!session.ok) return session.response;
   const { org_id: orgId, sub: userId } = session.auth.claims;
@@ -87,4 +87,4 @@ export async function POST(request: NextRequest) {
   }
 
   return apiOk({ server_time: new Date().toISOString(), results });
-}
+});

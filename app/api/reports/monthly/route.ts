@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiErr } from "@/lib/api/response";
+import { apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { getMonthlyReportData } from "@/lib/reports/monthly-data";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 const monthSchema = z.string().regex(/^\d{4}-\d{2}$/);
 
-export async function GET(request: Request) {
+export const GET = withApiErrorBoundary(async (request: Request) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -29,4 +29,4 @@ export async function GET(request: Request) {
       "Content-Disposition": `attachment; filename="davomat-${month}.xlsx"`,
     },
   });
-}
+});

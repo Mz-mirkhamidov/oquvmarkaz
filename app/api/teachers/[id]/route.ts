@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { teacherPinResetSchema } from "@/lib/schemas/teacher";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
@@ -19,7 +19,7 @@ const patchSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export const PATCH = withApiErrorBoundary(async (request: NextRequest, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
   const { id } = await params;
@@ -76,4 +76,4 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   });
 
   return apiOk(teacher);
-}
+});

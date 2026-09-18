@@ -1,10 +1,10 @@
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { getAuthContext } from "@/lib/auth/session";
 import { requestDb } from "@/lib/db/server";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export const GET = withApiErrorBoundary(async () => {
   const auth = await getAuthContext();
   if (!auth) return apiErr(401, "NO_SESSION", "Sessiya topilmadi. Qayta kiring.");
 
@@ -24,4 +24,4 @@ export async function GET() {
   }
 
   return apiOk({ org, user });
-}
+});

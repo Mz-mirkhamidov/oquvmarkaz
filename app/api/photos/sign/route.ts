@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { photoSignSchema } from "@/lib/schemas/photo";
 import { requireAuth } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 
 const SIGN_TTL_SECONDS = 60;
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const session = await requireAuth();
   if (!session.ok) return session.response;
   const orgId = session.auth.claims.org_id;
@@ -59,4 +59,4 @@ export async function POST(request: NextRequest) {
     token: target.token,
     expires_at: target.expiresAt,
   });
-}
+});

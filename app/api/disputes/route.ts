@@ -1,4 +1,4 @@
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { disputeCreateSchema } from "@/lib/schemas/dispute";
@@ -7,7 +7,7 @@ import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
+export const GET = withApiErrorBoundary(async (request: Request) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -24,9 +24,9 @@ export async function GET(request: Request) {
   const { data, error } = await query;
   if (error) return apiErr(500, "DB_ERROR", "Yuklab bo'lmadi.");
   return apiOk(data ?? []);
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withApiErrorBoundary(async (request: Request) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -61,4 +61,4 @@ export async function POST(request: Request) {
   });
 
   return apiOk(dispute, 201);
-}
+});

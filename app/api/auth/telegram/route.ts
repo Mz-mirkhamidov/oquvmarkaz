@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { telegramLoginSchema } from "@/lib/schemas/auth";
 import { verifyTelegramInitData } from "@/lib/auth/telegram";
 import { adminDb } from "@/lib/db/admin";
@@ -11,7 +11,7 @@ import { logAudit, clientIp } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const ip = clientIp(request) ?? "unknown";
   const withinLimit = await checkRateLimit(`auth:ip:${ip}`, 10, 60);
   if (!withinLimit) {
@@ -40,7 +40,10 @@ export async function POST(request: NextRequest) {
     .eq("telegram_id", verified.user.id)
     .maybeSingle();
 
-  if (error) return apiErr(500, "DB_ERROR", "Hozir ulanib bo'lmadi.");
+  if (error) {
+    console.error("auth_telegram_db_error", error);
+    return apiErr(500, "DB_ERROR", "Hozir ulanib bo'lmadi.");
+  }
 
   if (!user || !user.is_active) {
     return apiErr(
@@ -73,4 +76,4 @@ export async function POST(request: NextRequest) {
   });
 
   return apiOk({ org_id: user.org_id, role: user.role });
-}
+});

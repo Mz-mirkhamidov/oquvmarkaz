@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { getStateComparisonView } from "@/lib/state/day-comparison";
@@ -18,7 +18,7 @@ function parseDate(date: string) {
   return z.iso.date().safeParse(date).success;
 }
 
-export async function GET(_request: Request, { params }: RouteParams) {
+export const GET = withApiErrorBoundary(async (_request: Request, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -30,9 +30,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const db = requestDb(session.auth.token);
   const view = await getStateComparisonView(db, session.auth.claims.org_id, date);
   return apiOk(view);
-}
+});
 
-export async function PUT(request: Request, { params }: RouteParams) {
+export const PUT = withApiErrorBoundary(async (request: Request, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -79,4 +79,4 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
   const view = await getStateComparisonView(db, session.auth.claims.org_id, date);
   return apiOk(view);
-}
+});

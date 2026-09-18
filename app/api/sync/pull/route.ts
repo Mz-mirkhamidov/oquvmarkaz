@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireAuth } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { todayInTashkent } from "@/lib/utils/date";
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
  * since `since` (children/groups/org/users), plus always today's
  * attendance so a freshly-opened tab reflects what other devices marked.
  */
-export async function GET(request: NextRequest) {
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const session = await requireAuth();
   if (!session.ok) return session.response;
   const { org_id: orgId } = session.auth.claims;
@@ -69,4 +69,4 @@ export async function GET(request: NextRequest) {
     day_status: day?.status ?? "open",
     today,
   });
-}
+});

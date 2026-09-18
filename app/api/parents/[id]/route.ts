@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { parentUpdateSchema } from "@/lib/schemas/parent";
@@ -12,7 +12,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+export const PATCH = withApiErrorBoundary(async (request: Request, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -61,9 +61,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   });
 
   return apiOk(parent);
-}
+});
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
+export const DELETE = withApiErrorBoundary(async (_request: Request, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -88,4 +88,4 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
   });
 
   return apiOk({ id });
-}
+});

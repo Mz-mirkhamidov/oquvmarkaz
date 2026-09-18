@@ -1,4 +1,4 @@
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { adminDb } from "@/lib/db/admin";
 import { issueSession } from "@/lib/auth/issue-session";
 import {
@@ -11,7 +11,7 @@ import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export const POST = withApiErrorBoundary(async () => {
   const refreshToken = await getRefreshTokenCookie();
   if (!refreshToken) {
     return apiErr(401, "NO_SESSION", "Sessiya topilmadi. Qayta kiring.");
@@ -84,4 +84,4 @@ export async function POST() {
   await setSessionCookies(accessToken, newRefreshToken);
 
   return apiOk({ org_id: user.org_id, role: user.role });
-}
+});

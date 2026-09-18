@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { orgRegisterSchema } from "@/lib/schemas/org";
 import { verifyTelegramInitData } from "@/lib/auth/telegram";
 import { adminDb } from "@/lib/db/admin";
@@ -13,7 +13,7 @@ import { slugify } from "@/lib/utils/slug";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const ip = clientIp(request) ?? "unknown";
   const withinLimit = await checkRateLimit(`auth:ip:${ip}`, 10, 60);
   if (!withinLimit) {
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
     .select("id")
     .single();
   if (orgErr || !org) {
+    console.error("org_setup_create_org_error", orgErr);
     return apiErr(500, "DB_ERROR", "Bog'chani yaratib bo'lmadi.");
   }
 
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (ownerErr || !owner) {
+    console.error("org_setup_create_owner_error", ownerErr);
     await db.from("organizations").delete().eq("id", org.id);
     return apiErr(500, "DB_ERROR", "Foydalanuvchini yaratib bo'lmadi.");
   }
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
   });
 
   return apiOk({ org_id: org.id, slug, role: owner.role });
-}
+});
 
 async function generateUniqueSlug(
   db: ReturnType<typeof adminDb>,

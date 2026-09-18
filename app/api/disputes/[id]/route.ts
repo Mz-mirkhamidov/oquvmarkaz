@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { randomBytes } from "node:crypto";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { disputeUpdateSchema } from "@/lib/schemas/dispute";
@@ -17,7 +17,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(_request: Request, { params }: RouteParams) {
+export const GET = withApiErrorBoundary(async (_request: Request, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -29,9 +29,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
   if (!evidence) return apiErr(404, "NOT_FOUND", "Da'vo topilmadi.");
 
   return apiOk(evidence);
-}
+});
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+export const PATCH = withApiErrorBoundary(async (request: Request, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -100,4 +100,4 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   });
 
   return apiOk(dispute);
-}
+});

@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { groupUpdateSchema } from "@/lib/schemas/group";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
@@ -12,7 +12,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export const PATCH = withApiErrorBoundary(async (request: NextRequest, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
   const { id } = await params;
@@ -55,9 +55,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   });
 
   return apiOk(group);
-}
+});
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export const DELETE = withApiErrorBoundary(async (request: NextRequest, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
   const { id } = await params;
@@ -92,4 +92,4 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   });
 
   return apiOk({ id, deactivated: true });
-}
+});

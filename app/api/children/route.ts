@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { childCreateSchema, childUpdateSchema } from "@/lib/schemas/child";
 import { requireAuth, requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
@@ -8,7 +8,7 @@ import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest) {
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const session = await requireAuth();
   if (!session.ok) return session.response;
 
@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
   if (error) return apiErr(500, "DB_ERROR", "Hozir ulanib bo'lmadi.");
   return apiOk(data);
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -79,9 +79,9 @@ export async function POST(request: NextRequest) {
   });
 
   return apiOk(child);
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withApiErrorBoundary(async (request: NextRequest) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -138,4 +138,4 @@ export async function PATCH(request: NextRequest) {
   });
 
   return apiOk(child);
-}
+});

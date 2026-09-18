@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { orgUpdateSchema } from "@/lib/schemas/org";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
@@ -8,7 +8,7 @@ import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withApiErrorBoundary(async (request: NextRequest) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -47,4 +47,4 @@ export async function PATCH(request: NextRequest) {
   });
 
   return apiOk(org);
-}
+});

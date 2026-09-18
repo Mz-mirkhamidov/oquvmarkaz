@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { groupCreateSchema } from "@/lib/schemas/group";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
@@ -8,7 +8,7 @@ import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export const GET = withApiErrorBoundary(async () => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -22,9 +22,9 @@ export async function GET() {
 
   if (error) return apiErr(500, "DB_ERROR", "Hozir ulanib bo'lmadi.");
   return apiOk(data);
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -67,4 +67,4 @@ export async function POST(request: NextRequest) {
   });
 
   return apiOk(group);
-}
+});

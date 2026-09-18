@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { generateLinkCode } from "@/lib/utils/link-code";
@@ -17,7 +17,7 @@ interface RouteParams {
 }
 
 /** A parent lost/changed their device — issue a fresh one-time link code, unlinking the old chat. */
-export async function POST(request: Request, { params }: RouteParams) {
+export const POST = withApiErrorBoundary(async (request: Request, { params }: RouteParams) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -62,4 +62,4 @@ export async function POST(request: Request, { params }: RouteParams) {
     link_code: updated.link_code,
     link_url: `https://t.me/${env().TELEGRAM_BOT_USERNAME}?start=${updated.link_code}`,
   });
-}
+});

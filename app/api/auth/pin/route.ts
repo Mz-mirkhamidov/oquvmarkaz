@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { pinLoginSchema } from "@/lib/schemas/auth";
 import { verifyPin, nextLockout } from "@/lib/auth/pin";
 import { adminDb } from "@/lib/db/admin";
@@ -11,7 +11,7 @@ import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const json = await request.json().catch(() => null);
   const parsed = pinLoginSchema.safeParse(json);
   if (!parsed.success) {
@@ -114,4 +114,4 @@ export async function POST(request: NextRequest) {
   });
 
   return apiOk({ org_id: user.org_id, role: user.role });
-}
+});

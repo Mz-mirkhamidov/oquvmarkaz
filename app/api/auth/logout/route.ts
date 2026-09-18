@@ -1,10 +1,10 @@
-import { apiOk } from "@/lib/api/response";
+import { apiOk, withApiErrorBoundary } from "@/lib/api/response";
 import { adminDb } from "@/lib/db/admin";
 import { getRefreshTokenCookie, hashRefreshToken, clearSessionCookies } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export const POST = withApiErrorBoundary(async () => {
   const refreshToken = await getRefreshTokenCookie();
   if (refreshToken) {
     await adminDb()
@@ -15,4 +15,4 @@ export async function POST() {
   }
   await clearSessionCookies();
   return apiOk({ loggedOut: true });
-}
+});

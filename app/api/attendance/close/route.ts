@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { dayCloseSchema } from "@/lib/schemas/attendance";
 import { requireAuth } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
@@ -10,7 +10,7 @@ import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const session = await requireAuth();
   if (!session.ok) return session.response;
 
@@ -61,4 +61,4 @@ export async function POST(request: NextRequest) {
     }
     throw err;
   }
-}
+});

@@ -1,4 +1,4 @@
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { parentCreateSchema } from "@/lib/schemas/parent";
@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 const LINK_CODE_TTL_DAYS = 7;
 const MAX_CODE_RETRIES = 3;
 
-export async function GET() {
+export const GET = withApiErrorBoundary(async () => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -37,9 +37,9 @@ export async function GET() {
         .filter((n): n is string => !!n),
     })),
   );
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withApiErrorBoundary(async (request: Request) => {
   const session = await requireManager();
   if (!session.ok) return session.response;
 
@@ -103,4 +103,4 @@ export async function POST(request: Request) {
     },
     201,
   );
-}
+});

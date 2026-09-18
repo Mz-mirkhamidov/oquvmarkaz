@@ -1,4 +1,4 @@
-import { apiOk, apiErr } from "@/lib/api/response";
+import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { env } from "@/lib/env";
 import { processNotificationOutbox } from "@/lib/notifications/processor";
 
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  * Bearer <CRON_SECRET>` header is the only gate, same shape as Vercel's
  * own cron auth convention.
  */
-export async function POST(request: Request) {
+export const POST = withApiErrorBoundary(async (request: Request) => {
   const secret = env().CRON_SECRET;
   if (!secret) return apiErr(500, "SERVER_ERROR", "CRON_SECRET sozlanmagan.");
 
@@ -21,6 +21,6 @@ export async function POST(request: Request) {
 
   const result = await processNotificationOutbox();
   return apiOk(result);
-}
+});
 
 export const GET = POST;
