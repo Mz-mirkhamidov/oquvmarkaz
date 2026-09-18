@@ -74,11 +74,14 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... NEXT_PUBLIC_APP_URL=https://.
 
 `notification_outbox` (parent Telegram messages) is drained by
 `POST /api/cron/notifications`, gated by `CRON_SECRET`. `vercel.json`
-schedules it every minute via Vercel Cron, which sends `Authorization:
+schedules it once daily via Vercel Cron, which sends `Authorization:
 Bearer $CRON_SECRET` automatically when that env var is set on the
-project — on a plan whose cron minimum is coarser than a minute, widen
-`vercel.json`'s schedule, or call the same route from any other
-scheduler that can send that header.
+project — Vercel's Hobby (free) plan only allows daily cron jobs, so
+that's the ceiling without upgrading to Pro. For faster delivery on
+the free plan, call the same route from an external scheduler instead
+(e.g. a GitHub Actions workflow on a `schedule:` trigger, or
+cron-job.org) — anything that can send that `Authorization` header at
+whatever interval you want.
 
 ## Scripts
 
