@@ -35,15 +35,31 @@ export default async function KirishPage({ searchParams }: PageProps) {
             </p>
           )}
 
-          <Button asChild size="lg" className="w-full">
-            <a href={BOT_USERNAME ? `https://t.me/${BOT_USERNAME}?start=web` : "#"}>
-              <Send className="size-[18px]" aria-hidden />
-              Telegram orqali kirish
-            </a>
-          </Button>
-          <p className="text-center text-xs text-text-3">
-            Telegramda botga o&apos;ting va &quot;🔐 Saytga kirish&quot; tugmasini bosing.
-          </p>
+          {BOT_USERNAME ? (
+            <>
+              <Button asChild size="lg" className="w-full">
+                <a href={`https://t.me/${BOT_USERNAME}?start=web`}>
+                  <Send className="size-[18px]" aria-hidden />
+                  Telegram orqali kirish
+                </a>
+              </Button>
+              <p className="text-center text-xs text-text-3">
+                Telegramda botga o&apos;ting va &quot;🔐 Saytga kirish&quot; tugmasini bosing.
+              </p>
+            </>
+          ) : (
+            // A silent dead "#" link here is exactly what caused a real
+            // production incident: the button did nothing and looked
+            // broken with no diagnostic. NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
+            // is deliberately not in lib/env.ts's schema (a missing
+            // client-only var shouldn't fail the whole build — see
+            // lib/auth/index.ts's getAuth() comment for why that's
+            // dangerous) — but a misconfiguration here still needs to be
+            // visible, not silent.
+            <p className="rounded-(--r-md) bg-danger-soft px-3 py-2 text-center text-sm text-danger">
+              Bot sozlanmagan. Kod: NO_BOT_USERNAME
+            </p>
+          )}
 
           <div className="flex items-center gap-3 text-xs text-text-3">
             <span className="h-px flex-1 bg-border" />

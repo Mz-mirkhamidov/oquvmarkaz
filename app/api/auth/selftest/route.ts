@@ -27,6 +27,13 @@ export const GET = async (request: NextRequest) => {
     AUTH_DATABASE_URL: describeDbUrl(process.env.AUTH_DATABASE_URL),
     DATABASE_URL: describeDbUrl(process.env.DATABASE_URL),
     TELEGRAM_BOT_TOKEN: describeFingerprint(process.env.TELEGRAM_BOT_TOKEN),
+    TELEGRAM_BOT_USERNAME: describeValue(process.env.TELEGRAM_BOT_USERNAME),
+    // Client-exposed, separate from TELEGRAM_BOT_USERNAME above — missing
+    // it doesn't fail the build (lib/env.ts's schema deliberately excludes
+    // it, see app/(auth)/kirish/page.tsx), but it silently breaks the
+    // "Telegram orqali kirish" button (a real production incident this
+    // session), so selftest needs to catch it even though env() won't.
+    NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: describeValue(process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME),
     TELEGRAM_WEBHOOK_SECRET: describe(process.env.TELEGRAM_WEBHOOK_SECRET),
     NEXT_PUBLIC_APP_URL: describeValue(process.env.NEXT_PUBLIC_APP_URL),
   };
