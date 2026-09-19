@@ -161,3 +161,118 @@ describe.runIf(dbAvailable)("disputes RLS", () => {
     expect(rows.rows).toHaveLength(1);
   });
 });
+
+// Both of these were live gaps found by walking the close -> report ->
+// state-comparison -> dispute chain against a real database. Neither was
+// reachable from a browser (the PostgREST bearer is minted per request and
+// never leaves the server, and every route above is requireManager), but
+// RLS is this app's stated security boundary and both are one careless new
+// route away from mattering. Fixed in 0015_day_status_guard.sql.
+describe.runIf(dbAvailable)("day status and seal are manager-only (0015)", () => {
+  it("a teacher cannot reopen a closed day", async () => {
+    const { dayId, teacherId, teacherClaims } = await seedOrgWithManagerTeacherAndDay();
+    await seed(`update attendance_days set status = 'closed' where id = $1`, [dayId]);
+
+    // `days_update` only ever checked org_id, so this used to succeed —
+    // the manager-only rule lived solely in /api/attendance/reopen.
+    await expect(
+      withTenant(teacherClaims, (client) =>
+        client.query(
+          `update attendance_days set status = 'reopened', reopened_by = $2 where id = $1`,
+          [dayId, teacherId],
+        ),
+      ),
+    ).rejects.toThrow(/FORBIDDEN/);
+  });
+
+  it("a teacher cannot overwrite the day seal", async () => {
+    const { dayId, teacherClaims } = await seedOrgWithManagerTeacherAndDay();
+    await seed(`update attendance_days set status = 'closed', day_seal = 'real-seal' where id = $1`, [
+      dayId,
+    ]);
+
+    // TZ §11.6: the seal is the evidence chain. Anyone who can rewrite it
+    // can rewrite history.
+    await expect(
+      withTenant(teacherClaims, (client) =>
+        client.query(`update attendance_days set day_seal = 'forged' where id = $1`, [dayId]),
+      ),
+    ).rejects.toThrow(/FORBIDDEN/);
+  });
+
+  it("a manager can still close and reopen", async () => {
+    const { dayId, managerId, managerClaims } = await seedOrgWithManagerTeacherAndDay();
+
+    const rows = await withTenant(managerClaims, async (client) => {
+      await client.query(
+        `update attendance_days set status = 'closed', closed_by = $2, day_seal = 'seal' where id = $1`,
+        [dayId, managerId],
+      );
+      await client.query(`update attendance_days set status = 'reopened', reopen_reason = 'x' where id = $1`, [
+        dayId,
+      ]);
+      return client.query("select status from attendance_days where id = $1", [dayId]);
+    });
+    expect(rows.rows[0].status).toBe("reopened");
+  });
+
+  it("a teacher can still mark attendance (the counts trigger updates the day)", async () => {
+    // The guard has to let this through: refresh_day_counts() is a
+    // SECURITY INVOKER trigger that UPDATEs attendance_days on every mark,
+    // so a blanket manager-only rule on that table would break the app's
+    // core function for the people who use it most.
+    const { orgId, dayId, teacherId, teacherClaims } = await seedOrgWithManagerTeacherAndDay();
+    const otherChild = randomUUID();
+    await seed(`insert into children (id, org_id, full_name) values ($1, $2, 'Boshqa')`, [otherChild, orgId]);
+
+    const rows = await withTenant(teacherClaims, async (client) => {
+      await client.query(
+        `insert into attendance_records (id, org_id, day_id, child_id, status, marked_by)
+         values ($1, $2, $3, $4, 'present', $5)`,
+        [randomUUID(), orgId, dayId, otherChild, teacherId],
+      );
+      return client.query("select present_count from attendance_days where id = $1", [dayId]);
+    });
+    expect(Number(rows.rows[0].present_count)).toBe(2);
+  });
+
+  it("a write with no JWT claims at all is left alone (service_role, cron, migrations)", async () => {
+    // The first version of the guard read the role through
+    // auth_user_role(), which casts current_setting(...) to jsonb. On the
+    // service_role path that setting is an empty string, and the cast blew
+    // up with "invalid input syntax for type json" — closing a day would
+    // have failed in production.
+    const { dayId } = await seedOrgWithManagerTeacherAndDay();
+    await seed(`select set_config('request.jwt.claims', '', false)`);
+    await expect(
+      seed(`update attendance_days set status = 'closed' where id = $1`, [dayId]),
+    ).resolves.not.toThrow();
+  });
+});
+
+describe.runIf(dbAvailable)("dispute_items writes are manager-only (0015)", () => {
+  it("a teacher cannot add an item to their org's dispute", async () => {
+    const { orgId, dayId, childId, teacherClaims } = await seedOrgWithManagerTeacherAndDay();
+    const checkId = randomUUID();
+    await seed(
+      `insert into state_checks (id, org_id, day_id, child_id, our_status, result, reason)
+       values ($1, $2, $3, $4, 'present', 'rejected', 'xatolik')`,
+      [checkId, orgId, dayId, childId],
+    );
+    const disputeId = randomUUID();
+    await seed(`insert into disputes (id, org_id, period_month, title) values ($1, $2, current_date, 'X')`, [
+      disputeId,
+      orgId,
+    ]);
+
+    // dispute_items_write carried is_manager() in USING but not in WITH
+    // CHECK, and INSERT only consults WITH CHECK — so deleting and editing
+    // were blocked while *adding* was wide open. A dispute is the document
+    // that goes to the state.
+    await expect(
+      withTenant(teacherClaims, (client) =>
+        client.query(`insert into dispute_items (dispute_id, check_id) values ($1, $2)`, [disputeId, checkId]),
+      ),
+    ).rejects.toThrow(/row-level security/i);
+  });
+});
