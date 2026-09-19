@@ -38,21 +38,37 @@ export default function SozlashPage() {
       if (cancelled) return;
       try {
         await apiGet("/api/me");
+        // Already registered — skip straight to the parts that can still
+        // be added to an existing bog'cha.
         if (!cancelled) {
           setStep(2);
           setReady(true);
         }
-      } catch {
-        // No session yet — fine as long as we still have a pending
-        // Telegram auth to register with (set by /kirish).
-        if (!cancelled) setReady(true);
+      } catch (err) {
+        if (cancelled) return;
+        // NO_ORG means signed in but no bog'cha yet: exactly who this
+        // wizard is for, starting at step 1.
+        //
+        // No session at all is different, and used to be a dead end: the
+        // landing page's main call to action ("14 kun bepul sinash")
+        // links straight here, so a visitor filled in the whole bog'cha
+        // form and only then got a 401 from /api/org/setup, which
+        // requires a session (TZ v2 §4.2 X1 — registration happens after
+        // sign-in now, there is no pending-Telegram-auth to carry it
+        // anymore). Send them to sign in first; /kirish/email means that
+        // is now a complete path for someone with no account at all.
+        if (err instanceof ApiClientError && err.code === "NO_SESSION") {
+          router.replace("/kirish");
+          return;
+        }
+        setReady(true);
       }
     }
     void run();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   if (!ready) {
     return (
