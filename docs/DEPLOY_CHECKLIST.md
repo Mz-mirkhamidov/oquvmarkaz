@@ -6,9 +6,15 @@ Vercel env var). It exists to stop X7/X9 (silent env drift, stale webhook)
 from recurring.
 
 There are three ways in, and a deploy can break one without touching the
-others: the bot (steps 6-8), email and password (steps 11-13), and a
+others: the bot (steps 6-8), email and password (steps 11-15), and a
 teacher's PIN on a bound device (`/kirish/pin`, not covered here because it
 needs a physical bound tablet).
+
+Steps 14-15 are the **only** password recovery there is. There is no mail
+provider, so `/reset-password` cannot deliver anything: someone who forgets
+their password signs in through the bot and sets a new one from Sozlamalar
+-> Xavfsizlik. If both the bot and that screen are broken at once, a
+manager with a forgotten password has no way back into their own bog'cha.
 
 ```
 [ ] 1. Env vars are set in Vercel's "Production" scope (not just Preview/Dev)
@@ -30,6 +36,9 @@ needs a physical bound tablet).
 [ ] 12. Signed out, signed back in with the same address -> got in
 [ ] 13. Tried to register tg-1@telegram.local -> refused with
         EMAIL_RESERVED (the account-takeover guard; see below)
+[ ] 14. Sozlamalar -> Xavfsizlik -> Parol: changed the password, then
+        signed in with the new one and was refused with the old one
+[ ] 15. A PASSWORD_SET row appeared in auth_events for that change
 ```
 
 Steps 11-13 need no extra env vars — email sign-in rides on the same
