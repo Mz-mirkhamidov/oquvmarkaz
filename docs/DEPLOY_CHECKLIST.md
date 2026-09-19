@@ -1,8 +1,14 @@
 # Deploy checklist (TZ v2 §17)
 
 Run through this after **every** deploy that touches auth (`lib/auth/**`,
-`supabase/migrations/00{10,11,12,13,14}_*.sql`, or any Vercel env var).
-It exists to stop X7/X9 (silent env drift, stale webhook) from recurring.
+`app/(auth)/**`, `supabase/migrations/00{10,11,12,13,14}_*.sql`, or any
+Vercel env var). It exists to stop X7/X9 (silent env drift, stale webhook)
+from recurring.
+
+There are three ways in, and a deploy can break one without touching the
+others: the bot (steps 6-8), email and password (steps 11-13), and a
+teacher's PIN on a bound device (`/kirish/pin`, not covered here because it
+needs a physical bound tablet).
 
 ```
 [ ] 1. Env vars are set in Vercel's "Production" scope (not just Preview/Dev)
@@ -19,7 +25,20 @@ It exists to stop X7/X9 (silent env drift, stale webhook) from recurring.
 [ ] 9. Migrations applied (selftest: db.migrations.last, or check
        supabase_migrations.schema_migrations directly)
 [ ] 10. A LOGIN_OK row appeared in auth_events for that login
+[ ] 11. /kirish/email -> registered a throwaway account -> landed on
+        /sozlash (NOT bounced back to /kirish)
+[ ] 12. Signed out, signed back in with the same address -> got in
+[ ] 13. Tried to register tg-1@telegram.local -> refused with
+        EMAIL_RESERVED (the account-takeover guard; see below)
 ```
+
+Steps 11-13 need no extra env vars — email sign-in rides on the same
+`BETTER_AUTH_*`/`AUTH_DATABASE_URL` the bot flow already uses, and the
+`account` table `0010_better_auth.sql` creates already has the `password`
+column. **13 is not optional.** Telegram accounts are keyed by a synthetic
+`tg-<telegramId>@telegram.local` address and a Telegram ID is public, so
+if that guard ever stops firing, anyone can claim a Telegram user's
+account before they first sign in and keep the password to it.
 
 **If the bot token was rotated:** steps 1 -> 2 -> 5 are mandatory again.
 Rotating the token breaks the webhook silently — nothing else reminds you.
