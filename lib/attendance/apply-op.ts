@@ -138,9 +138,9 @@ async function applyMark(op: Extract<SyncOp, { type: "attendance.mark" }>, ctx: 
     p_marked_by: userId,
     // p_device_id has no SQL default (unlike p_note/p_correction_note
     // below) so it must always be passed — but the column is nullable;
-    // the generated Args type just doesn't express that. See TZ v2 §4.4 —
-    // devices.deviceId isn't populated on any session yet (bind-code flow
-    // not wired into session creation), so this is always null for now.
+    // the generated Args type just doesn't express that. Populated from
+    // the bound-device cookie in /api/sync/push, and null when there is
+    // no bound device (e.g. a manager marking from their own phone).
     p_device_id: (deviceId ?? null) as unknown as string,
     p_client_marked_at: op.client_at,
     p_note: note ?? undefined,
