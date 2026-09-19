@@ -1,6 +1,6 @@
 import "server-only";
 import { betterAuth } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getIP } from "better-auth/api";
 import { customSession } from "better-auth/plugins";
 
 import { env } from "@/lib/env";
@@ -9,6 +9,9 @@ import { adminDb } from "@/lib/db/admin";
 import { telegramLogin, isReservedSignUpEmail } from "@/lib/auth/plugins/telegram-login";
 import { devicePin } from "@/lib/auth/plugins/device-pin";
 import { setPassword } from "@/lib/auth/plugins/set-password";
+import { allow } from "@/lib/auth/rate-limit";
+import { logAuthEvent } from "@/lib/auth/events";
+import { AUTH_MESSAGES } from "@/lib/auth/errors";
 
 /**
  * TZ v2 §6 — the sole session/identity layer. Postgres (via `authPool`,
@@ -159,11 +162,44 @@ function buildAuth() {
       // routable, and no real person can receive mail at it, so refusing
       // it outright costs nobody anything.
       before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path !== "/sign-up/email") return;
-        if (isReservedSignUpEmail((ctx.body as { email?: unknown } | undefined)?.email)) {
+        if (ctx.path !== "/sign-up/email" && ctx.path !== "/sign-in/email") return;
+
+        const email = String((ctx.body as { email?: unknown } | undefined)?.email ?? "")
+          .toLowerCase()
+          .trim();
+
+        if (ctx.path === "/sign-up/email" && isReservedSignUpEmail(email)) {
           throw new APIError("BAD_REQUEST", {
             code: "EMAIL_RESERVED",
             message: "Bu pochta manzilidan foydalanib bo'lmaydi.",
+          });
+        }
+
+        // Per-account brute-force limit, keyed by the address being
+        // guessed rather than by who is guessing.
+        //
+        // Better Auth already throttles these paths at 3 requests per 10
+        // seconds — but per IP (its getDefaultSpecialRules). That stops one
+        // host hammering away and does nothing about the same guesses
+        // spread across many hosts, which is what a botnet is for: each IP
+        // stays under the limit while one account still takes unlimited
+        // tries. This key does not move with the attacker.
+        //
+        // Deliberately a rate limit and not an account lockout. Locking a
+        // *known* address (and a manager's is not secret) would hand an
+        // attacker a way to keep the real owner out of their own bog'cha,
+        // and with no mail provider there is no self-service unlock to
+        // escape it with. Slowing guesses to a crawl costs an attacker
+        // everything and a real person nothing: 10 tries per 5 minutes is
+        // far more than anyone types by hand.
+        if (ctx.path !== "/sign-in/email" || !email) return;
+
+        if (!(await allow(`signin:email:${email}`, 10, 300))) {
+          const ip = getIP(ctx.headers ?? new Headers(), ctx.context.options) ?? null;
+          await logAuthEvent({ code: "RATE_LIMITED", stage: "session", ok: false, ip });
+          throw new APIError("TOO_MANY_REQUESTS", {
+            code: "RATE_LIMITED",
+            message: AUTH_MESSAGES.RATE_LIMITED,
           });
         }
       }),
