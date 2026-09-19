@@ -9,6 +9,8 @@ import { adminDb } from "@/lib/db/admin";
 import { applyOp } from "@/lib/attendance/apply-op";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
+import { getBoundDevice } from "@/lib/auth/device-cookie";
+import { AUTH_MESSAGES } from "@/lib/auth/errors";
 
 export const runtime = "nodejs";
 
@@ -29,11 +31,19 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   }
 
   const admin = adminDb();
-  // TZ v2 §4.4/§5.2 replaced the client-generated `device_key` this used
-  // to look up (0001_init.sql) with a server-issued bind code + cookie —
-  // not yet wired into the offline sync path, so device identification/
-  // blocking here is a tracked gap rather than dropped silently.
-  let device: { id: string } | undefined;
+
+  // TZ v2 §4.4/§5.2 — the device identity here comes from the httpOnly
+  // cookie set at /qurilma, not the old client-generated device_key
+  // (dropped in 0011_auth_extra.sql). It stays optional: a manager marking
+  // attendance from their own phone has no bound device and must still be
+  // able to sync. But when a device IS bound, blocking it has to actually
+  // stop writes — otherwise /api/devices/[id]/block only revokes sessions
+  // while the offline outbox keeps syncing from the blocked tablet.
+  const bound = await getBoundDevice();
+  if (bound?.isBlocked) {
+    return apiErr(403, "DEVICE_BLOCKED", AUTH_MESSAGES.DEVICE_BLOCKED);
+  }
+  const device = bound && bound.orgId === orgId ? { id: bound.id } : undefined;
 
   const db = requestDb(session.auth.token);
   const results: SyncOpResult[] = [];
