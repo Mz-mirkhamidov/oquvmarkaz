@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/offline/db";
 import { apiGet } from "@/lib/api/client";
-import type { AttendStatus } from "@/lib/db/types";
+import type { AttendStatus, UserRole } from "@/lib/db/types";
 
 interface PullResponse {
   server_time: string;
@@ -25,6 +25,7 @@ interface PullResponse {
   }[];
   day_status: "open" | "closed" | "reopened";
   today: string;
+  user_role: UserRole;
 }
 
 /**
@@ -78,6 +79,7 @@ export async function pullAndCache(): Promise<PullResponse> {
   await db.meta.put({ key: "last_pull_at", value: data.cursor });
   await db.meta.put({ key: "today", value: data.today });
   await db.meta.put({ key: "day_status", value: data.day_status });
+  await db.meta.put({ key: "user_role", value: data.user_role });
 
   return data;
 }

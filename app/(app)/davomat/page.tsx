@@ -32,7 +32,7 @@ import {
   useOnlineStatus,
 } from "@/lib/offline/hooks";
 import { todayInTashkent } from "@/lib/utils/date";
-import type { AttendStatus } from "@/lib/db/types";
+import type { AttendStatus, UserRole } from "@/lib/db/types";
 
 type Screen = "loading" | "ready" | "no_data";
 
@@ -48,6 +48,10 @@ export default function DavomatPage() {
   const today = useMeta("today", todayInTashkent());
   const dayStatus = useMeta<"open" | "closed" | "reopened">("day_status", "open");
   const photoRequired = useMeta("photo_required", true);
+  // Cached from /api/sync/pull. Defaults to "teacher" so a stale cache
+  // hides the button rather than showing one that would 403 — the real
+  // gate is requireManager() on the server either way.
+  const userRole = useMeta<UserRole>("user_role", "teacher");
   // These hooks already default to [] via useLiveQuery's third argument —
   // no `?? []` here, so the reference stays stable across renders.
   const groups = useCachedGroups();
@@ -107,6 +111,7 @@ export default function DavomatPage() {
   }, [filteredChildren]);
 
   const isClosed = dayStatus === "closed";
+  const canCloseDay = userRole === "owner" || userRole === "director";
 
   async function mark(child: ChildCardData, status: AttendStatus, photo?: Blob) {
     if (isClosed) return;
@@ -203,7 +208,13 @@ export default function DavomatPage() {
         </div>
       </div>
 
-      {!isClosed && (
+      {!isClosed && !canCloseDay && counts.remaining === 0 && (
+        <div className="sticky bottom-0 border-t border-border bg-surface px-4 py-3 text-center text-sm text-text-2">
+          Hamma bola belgilandi. Kunni rahbar yopadi.
+        </div>
+      )}
+
+      {!isClosed && canCloseDay && (
         <div className="sticky bottom-0 border-t border-border bg-surface p-4">
           <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
             <Button size="xl" className="w-full" onClick={() => setCloseDialogOpen(true)}>

@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { Database } from "@/lib/db/types";
+import type { Database, UserRole } from "@/lib/db/types";
 import type { SyncOp, SyncOpResult } from "@/lib/schemas/sync";
 import { enqueueAttendanceNotification } from "@/lib/notifications/enqueue";
 
@@ -18,6 +18,7 @@ interface ApplyContext {
   db: Db; // RLS-scoped (per-request JWT) — used for everything except sync_ops (see 0002_rls.sql)
   orgId: string;
   userId: string;
+  userRole: UserRole;
   deviceId?: string;
 }
 
@@ -282,6 +283,13 @@ export async function closeDay(
 }
 
 async function applyDayClose(op: Extract<SyncOp, { type: "day.close" }>, ctx: ApplyContext) {
+  // The offline outbox is a second way into closeDay(), so the manager
+  // check on POST /api/attendance/close has to be mirrored here — a
+  // teacher's queued day.close op would otherwise close the whole
+  // organization's day without ever touching that route.
+  if (ctx.userRole !== "owner" && ctx.userRole !== "director") {
+    throw new RejectedOpError("forbidden");
+  }
   await closeDay(ctx.db, ctx.orgId, ctx.userId, ctx.deviceId, op.payload.day_date, op.client_at);
   return { status: "applied" as const };
 }

@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { apiOk, apiErr, withApiErrorBoundary } from "@/lib/api/response";
 import { dayCloseSchema } from "@/lib/schemas/attendance";
-import { requireAuth } from "@/lib/auth/guard";
+import { requireManager } from "@/lib/auth/guard";
 import { requestDb } from "@/lib/db/server";
 import { adminDb } from "@/lib/db/admin";
 import { closeDay, RejectedOpError } from "@/lib/attendance/apply-op";
@@ -10,8 +10,15 @@ import { logAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
+// Closing a day is org-wide and one-way: closeDay() marks every unmarked
+// active child in the whole organization absent, seals the day, and from
+// then on only a correction (with a written reason) can change anything.
+// Reopening has always been requireManager(). Letting any teacher close
+// meant one group's teacher could mark another group's children absent
+// and lock the day, with no way to undo it without the owner — so close
+// is now symmetric with reopen.
 export const POST = withApiErrorBoundary(async (request: NextRequest) => {
-  const session = await requireAuth();
+  const session = await requireManager();
   if (!session.ok) return session.response;
 
   const json = await request.json().catch(() => null);

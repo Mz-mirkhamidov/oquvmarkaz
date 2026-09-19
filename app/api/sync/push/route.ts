@@ -78,6 +78,7 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
       db,
       orgId,
       userId,
+      userRole: session.auth.claims.user_role,
       deviceId: device?.id,
     });
     results.push(outcome);

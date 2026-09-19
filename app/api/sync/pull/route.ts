@@ -68,5 +68,9 @@ export const GET = withApiErrorBoundary(async (request: NextRequest) => {
     attendance_records: records.data ?? [],
     day_status: day?.status ?? "open",
     today,
+    // The davomat screen caches this so it can hide "Kunni yopish" from a
+    // teacher. The button is only a courtesy — the real gate is
+    // requireManager() on the close route and in applyDayClose.
+    user_role: session.auth.claims.user_role,
   });
 });
