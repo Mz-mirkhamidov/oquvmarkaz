@@ -53,9 +53,43 @@ export function getBot(): Bot {
   return bot;
 }
 
+/**
+ * Telegram only accepts https:// (or tg://) URLs in an inline keyboard
+ * button — it rejects http://localhost outright with "inline keyboard
+ * button URL is invalid". NEXT_PUBLIC_APP_URL defaults to
+ * http://localhost:3000 (lib/env.ts), so a deployment that never sets it
+ * silently builds a link Telegram refuses; the reply throws, the webhook
+ * returns 500, Telegram retries the same update, and each retry burns
+ * another rate-limit hit until the user is locked out behind "Biroz
+ * kuting" having never seen a button. Confirmed in production: 6
+ * login_tokens rows created, 0 consumed, 3 LOGIN_OK events per 2 messages.
+ *
+ * BETTER_AUTH_URL is required (no default) and is the same origin, so it
+ * is the trustworthy fallback when NEXT_PUBLIC_APP_URL is still local.
+ */
+function loginLinkBaseUrl(): string | null {
+  for (const candidate of [env().NEXT_PUBLIC_APP_URL, env().BETTER_AUTH_URL]) {
+    if (candidate?.startsWith("https://")) return candidate.replace(/\/$/, "");
+  }
+  return null;
+}
+
 async function sendLoginLink(ctx: Context): Promise<void> {
   const tgId = ctx.from?.id;
   if (!tgId || !ctx.chat) return;
+
+  // Checked before the rate limit so a misconfigured deployment reports
+  // itself on every attempt instead of consuming the user's budget.
+  const baseUrl = loginLinkBaseUrl();
+  if (!baseUrl) {
+    console.error("login_link_base_url_invalid", {
+      appUrl: env().NEXT_PUBLIC_APP_URL,
+      authUrl: env().BETTER_AUTH_URL,
+    });
+    await logAuthEvent({ code: "CONFIG_ERROR", stage: "bot", ok: false, telegramId: tgId });
+    await ctx.reply("Sayt manzili noto'g'ri sozlangan. Kod: NO_HTTPS_APP_URL");
+    return;
+  }
 
   if (!(await allow(`login:tg:${tgId}`, 3, 60))) {
     await ctx.reply("Biroz kuting va qayta urinib ko'ring.");
@@ -72,13 +106,23 @@ async function sendLoginLink(ctx: Context): Promise<void> {
     [tokenHash, tgId, ctx.from?.username ?? null, ctx.from?.first_name ?? null, ctx.chat.id],
   );
 
-  await logAuthEvent({ code: "LOGIN_OK", stage: "bot", ok: true, telegramId: tgId });
+  const url = `${baseUrl}/kirish/t?k=${raw}`;
+  try {
+    await ctx.reply(
+      "Tizimga kirish uchun tugmani bosing.\n\nHavola 10 daqiqa amal qiladi va bir marta ishlatiladi.",
+      { reply_markup: { inline_keyboard: [[{ text: "🔐 Saytga kirish", url }]] } },
+    );
+  } catch (err) {
+    // Letting this escape 500s the webhook, which makes Telegram redeliver
+    // the same update — and every redelivery costs another rate-limit hit.
+    // Swallow it, log it, and fall back to a plain-text link.
+    console.error("login_link_reply_failed", err);
+    await logAuthEvent({ code: "CONFIG_ERROR", stage: "bot", ok: false, telegramId: tgId });
+    await ctx.reply(`Tizimga kirish havolasi (10 daqiqa amal qiladi):\n${url}`);
+    return;
+  }
 
-  const url = `${env().NEXT_PUBLIC_APP_URL}/kirish/t?k=${raw}`;
-  await ctx.reply(
-    "Tizimga kirish uchun tugmani bosing.\n\nHavola 10 daqiqa amal qiladi va bir marta ishlatiladi.",
-    { reply_markup: { inline_keyboard: [[{ text: "🔐 Saytga kirish", url }]] } },
-  );
+  await logAuthEvent({ code: "LOGIN_OK", stage: "bot", ok: true, telegramId: tgId });
 }
 
 async function handleParentLink(ctx: Context, code: string): Promise<void> {

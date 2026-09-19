@@ -41,6 +41,16 @@ export const GET = async (request: NextRequest) => {
     if (!info.present) problems.push(`ENV_MISSING:${name}`);
   }
 
+  // NEXT_PUBLIC_APP_URL defaults to http://localhost:3000 (lib/env.ts), so
+  // "present" isn't enough — a deployment that never set it reads as
+  // healthy here while Telegram silently rejects every login button built
+  // from it (inline keyboard URLs must be https://). Same for
+  // BETTER_AUTH_URL, which cookies and redirects are built from.
+  for (const name of ["NEXT_PUBLIC_APP_URL", "BETTER_AUTH_URL"] as const) {
+    const value = process.env[name];
+    if (value && !value.startsWith("https://")) problems.push(`ENV_NOT_HTTPS:${name}`);
+  }
+
   const db = {
     auth_pool: await checkPool(async () => {
       const { rows } = await authPool().query<{ table_name: string }>(
