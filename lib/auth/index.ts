@@ -76,10 +76,19 @@ function buildAuth() {
       additionalFields: {
         deviceId: { type: "string", required: false, input: false },
       },
-      cookieCache: {
-        enabled: true,
-        maxAge: 60 * 5, // 5 daqiqa — DB so'rovlarini kamaytiradi
-      },
+      // Deliberately OFF. The cookie cache serves user/session fields
+      // straight from a signed cookie without touching the DB, but in this
+      // app those fields (orgId, appRole, isActive, deviceId) are exactly
+      // what every permission decision reads — so a stale copy is both a
+      // correctness and a security problem:
+      //   - registration broke on it (confirmed in production): /sozlash
+      //     step 1 writes "user".orgId, step 2 still read orgId=null from
+      //     the cookie and failed with NO_ORG until the cache expired;
+      //   - a teacher deactivated by a manager (isActive=false) would keep
+      //     working for up to maxAge, as would a session whose device was
+      //     just blocked (/api/devices/[id]/block).
+      // The DB lookup it saves is a single indexed query.
+      cookieCache: { enabled: false },
     },
 
     advanced: {

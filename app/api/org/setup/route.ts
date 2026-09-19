@@ -63,7 +63,10 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   }
 
   const { rowCount } = await authPool().query(
-    `update "user" set "orgId" = $1, "appRole" = 'owner' where id = $2`,
+    // "updatedAt" is Better Auth's own column and is not auto-maintained on
+    // a raw UPDATE — without it the row still reports its pre-registration
+    // timestamp, which is misleading when debugging exactly this flow.
+    `update "user" set "orgId" = $1, "appRole" = 'owner', "updatedAt" = now() where id = $2`,
     [org.id, user.id],
   );
   if (!rowCount) {
