@@ -128,5 +128,26 @@ export const telegramLogin = () =>
  * address instead of a second identity column to key off of.
  */
 function telegramEmail(telegramId: string): string {
-  return `tg-${telegramId}@telegram.local`;
+  return `tg-${telegramId}${TELEGRAM_EMAIL_DOMAIN}`;
+}
+
+/**
+ * Exported so lib/auth/index.ts can refuse email sign-ups on it — a
+ * Telegram ID is public, so anyone could otherwise claim a Telegram
+ * user's synthetic address before they first log in. Keep the two in one
+ * place: if this domain ever changes and the sign-up guard doesn't follow,
+ * the hole reopens silently.
+ */
+export const TELEGRAM_EMAIL_DOMAIN = "@telegram.local";
+
+/**
+ * True for an address only the Telegram flow may ever own. Used by the
+ * /sign-up/email guard in lib/auth/index.ts; extracted so the rule can be
+ * tested without standing up a whole Better Auth instance.
+ */
+export function isReservedSignUpEmail(email: unknown): boolean {
+  return String(email ?? "")
+    .toLowerCase()
+    .trim()
+    .endsWith(TELEGRAM_EMAIL_DOMAIN);
 }

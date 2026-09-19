@@ -68,6 +68,10 @@ export default async function KirishPage({ searchParams }: PageProps) {
           </div>
 
           <Button asChild size="lg" variant="secondary" className="w-full">
+            <Link href="/kirish/email">Pochta va parol bilan</Link>
+          </Button>
+
+          <Button asChild size="lg" variant="secondary" className="w-full">
             <Link href="/kirish/pin">Tarbiyachiman</Link>
           </Button>
         </CardContent>

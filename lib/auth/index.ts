@@ -1,11 +1,12 @@
 import "server-only";
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { customSession } from "better-auth/plugins";
 
 import { env } from "@/lib/env";
 import { authPool } from "@/lib/db/auth-pool";
 import { adminDb } from "@/lib/db/admin";
-import { telegramLogin } from "@/lib/auth/plugins/telegram-login";
+import { telegramLogin, isReservedSignUpEmail } from "@/lib/auth/plugins/telegram-login";
 import { devicePin } from "@/lib/auth/plugins/device-pin";
 
 /**
@@ -47,7 +48,26 @@ function buildAuth() {
     secret: env().BETTER_AUTH_SECRET,
     baseURL: env().BETTER_AUTH_URL,
 
-    emailAndPassword: { enabled: false },
+    // TZ v2 §5.1 kept this off when Telegram was the only way in. It is on
+    // now because a bog'cha that cannot reach the bot (no Telegram, a bot
+    // outage, a blocked account) otherwise has no way to register at all —
+    // which is exactly what happened in production.
+    //
+    // requireEmailVerification stays false deliberately: there is no mail
+    // provider wired up, so turning it on would lock every new account out
+    // with no way to unlock it. It costs nothing here — an unverified
+    // address grants no access to anything. A fresh account has orgId=null
+    // and can only do one thing: create its OWN organization (POST
+    // /api/org/setup, which refuses if orgId is already set). It can never
+    // reach an existing bog'cha's data, and teachers are added by their
+    // manager, not by signing up.
+    emailAndPassword: {
+      enabled: true,
+      minPasswordLength: 8,
+      maxPasswordLength: 128,
+      autoSignIn: true,
+      requireEmailVerification: false,
+    },
     socialProviders: {},
 
     user: {
@@ -105,6 +125,48 @@ function buildAuth() {
     },
 
     rateLimit: { enabled: true, window: 60, max: 30 },
+
+    databaseHooks: {
+      user: {
+        create: {
+          // `fullName` is this app's own field and the only one the UI
+          // reads (app/(app)/layout.tsx -> AppNav). Better Auth's
+          // /sign-up/email writes core `name` and knows nothing about it,
+          // so an email-registered manager showed up with a blank name in
+          // the header. The Telegram plugin sets both already; this just
+          // covers the paths that don't.
+          before: async (user) => {
+            const appUser = user as typeof user & { fullName?: string | null };
+            if (appUser.fullName) return;
+            return { data: { ...appUser, fullName: user.name } };
+          },
+        },
+      },
+    },
+
+    hooks: {
+      // Account-takeover guard, and the reason this is not just a config
+      // flag. Telegram accounts have no real address, so the plugin gives
+      // them a synthetic `tg-<telegramId>@telegram.local` (see
+      // telegram-login.ts) and looks users up by it. Telegram IDs are not
+      // secret. With email sign-up open, anyone could register
+      // `tg-<victim's id>@telegram.local` with a password of their
+      // choosing; the next time that person logged in through the bot,
+      // findUserByEmail would hand them the attacker's account — and the
+      // attacker would still hold the password to it, plus whatever
+      // bog'cha that account went on to create. The domain is ours, never
+      // routable, and no real person can receive mail at it, so refusing
+      // it outright costs nobody anything.
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/sign-up/email") return;
+        if (isReservedSignUpEmail((ctx.body as { email?: unknown } | undefined)?.email)) {
+          throw new APIError("BAD_REQUEST", {
+            code: "EMAIL_RESERVED",
+            message: "Bu pochta manzilidan foydalanib bo'lmaydi.",
+          });
+        }
+      }),
+    },
 
     plugins: [
       telegramLogin(),

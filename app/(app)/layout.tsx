@@ -25,14 +25,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // `org`/`role`/user.fullName — no separate PostgREST round-trip needed.
   // requireAuth() above already confirmed a session exists.
   const session = await getAuth().api.getSession({ headers: await headers() });
-  const user = session?.user as { fullName: string | null } | undefined;
+  // Falls back to Better Auth's core `name`: accounts created before the
+  // databaseHooks backfill in lib/auth/index.ts have fullName = null, and
+  // an empty header name looks like a broken session.
+  const user = session?.user as { fullName: string | null; name: string | null } | undefined;
   const org = (session as unknown as { org: { name: string } | null } | null)?.org;
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
       <AppNav
         orgName={org?.name ?? "Qalqon"}
-        userName={user?.fullName ?? ""}
+        userName={user?.fullName ?? user?.name ?? ""}
         role={auth.claims.user_role}
       />
       <div className="flex-1">{children}</div>
