@@ -40,6 +40,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   PASSWORD_TOO_SHORT: `Parol kamida ${MIN_PASSWORD} ta belgidan iborat bo'lsin.`,
   PASSWORD_TOO_LONG: "Parol juda uzun.",
   USER_DISABLED: "Hisobingiz o'chirilgan. Rahbaringizga murojaat qiling.",
+  // lib/auth/index.ts's per-account sign-in limiter (10/5min) and Better
+  // Auth's own built-in IP limiter on /sign-in and /sign-up both answer
+  // with this code. Without an entry here the fallback below already
+  // shows an Uzbek message (the server sends one in RATE_LIMITED's body),
+  // but appends the raw code in parentheses — fine for an unknown error,
+  // wrong for one this common.
+  RATE_LIMITED: "Juda ko'p urinish. Bir necha daqiqadan keyin qayta urinib ko'ring.",
 };
 
 export default function EmailAuthPage() {
