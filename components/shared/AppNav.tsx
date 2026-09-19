@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils/cn";
-import { apiPost } from "@/lib/api/client";
 import type { UserRole } from "@/lib/db/types";
 
 const MANAGER_LINKS = [
@@ -32,21 +31,38 @@ export function AppNav({
   const links = isManager ? MANAGER_LINKS : TEACHER_LINKS;
 
   async function logout() {
-    await apiPost("/api/auth/logout", {}).catch(() => {});
+    // Better Auth owns sign-out (/api/auth/[...all]); the old hand-rolled
+    // /api/auth/logout route was deleted in the A0-A2 rebuild, so this was
+    // POSTing to a 404 — swallowed by the catch, which made "Chiqish" look
+    // like it worked while leaving the session cookie intact. On a shared
+    // tablet that means the next person is still signed in as the last one.
+    await fetch("/api/auth/sign-out", { method: "POST" }).catch(() => {});
     router.push("/kirish");
+    // refresh() as well: push alone can serve already-rendered
+    // authenticated pages from the client router cache, so without this
+    // the back button can still show them after signing out.
+    router.refresh();
   }
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-surface px-4 sm:px-6">
-      <div className="flex items-center gap-6">
-        <span className="text-[16px] font-semibold text-text">{orgName}</span>
-        <nav className="hidden items-center gap-1 sm:flex">
+      {/* The nav used to be `hidden sm:flex`, which hid every link —
+          Bolalar, Hisobot, even Davomat — on exactly the phones and
+          tablets this app is built for, leaving no way to reach those
+          pages at all. It stays visible at every width now; the org name
+          is what gives way on narrow screens, since it is decoration and
+          the nav is the only route to the rest of the app. */}
+      <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+        <span className="hidden shrink-0 text-[16px] font-semibold text-text sm:inline">
+          {orgName}
+        </span>
+        <nav className="flex items-center gap-1 overflow-x-auto">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={cn(
-                "rounded-(--r-md) px-3 py-2 text-sm font-medium text-text-2 transition-colors hover:bg-surface-2 hover:text-text",
+                "shrink-0 rounded-(--r-md) px-3 py-2 text-sm font-medium text-text-2 transition-colors hover:bg-surface-2 hover:text-text",
                 pathname.startsWith(link.href) && "bg-surface-2 text-text",
               )}
             >
