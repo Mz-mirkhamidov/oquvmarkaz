@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ApiClientError } from "@/lib/api/client";
 import { markAttendance, queueDayClose } from "@/lib/offline/queue";
-import { syncNow, setupAutoSync } from "@/lib/offline/sync";
+import { syncNow, setupAutoSync, retryFailed } from "@/lib/offline/sync";
 import { pullAndCache } from "@/lib/offline/pull";
 import {
   useCachedChildren,
@@ -165,7 +165,7 @@ export default function DavomatPage() {
 
   return (
     <div className="flex min-h-[calc(100dvh-64px)] flex-col">
-      <SyncBar onRetry={() => void syncNow()} />
+      <SyncBar onRetry={() => void retryFailed()} />
 
       <div className="flex-1 px-4 py-4 sm:px-6">
         {groups.length > 1 && (

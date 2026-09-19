@@ -8,7 +8,9 @@ import { requestDb } from "@/lib/db/server";
 import { adminDb } from "@/lib/db/admin";
 import { applyOp } from "@/lib/attendance/apply-op";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { logAudit } from "@/lib/audit";
+import { logAuditBatch } from "@/lib/audit";
+import type { AuditEntry } from "@/lib/audit";
+import type { Database } from "@/lib/db/types";
 import { getBoundDevice } from "@/lib/auth/device-cookie";
 import { AUTH_MESSAGES } from "@/lib/auth/errors";
 
@@ -48,15 +50,26 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const db = requestDb(session.auth.token);
   const results: SyncOpResult[] = [];
 
+  // One round trip for the whole batch instead of one per op. This used to
+  // be a per-op idempotency SELECT + sync_ops INSERT + audit INSERT inside
+  // the loop, so a full 200-op batch cost ~600 Supabase round trips on top
+  // of applyOp's own — on a rural mobile connection that is the difference
+  // between a batch landing and the function timing out mid-way, with the
+  // early ops already committed. sync_ops has no RLS policy for
+  // `authenticated` at all (0002_rls.sql), so every read/write here has to
+  // go through service_role.
+  const opIds = parsed.data.ops.map((op) => op.op_id);
+  const { data: existingRows } = await admin
+    .from("sync_ops")
+    .select("op_id")
+    .in("op_id", opIds);
+  const alreadyApplied = new Set((existingRows ?? []).map((r) => r.op_id));
+
+  const syncOpRows: Database["public"]["Tables"]["sync_ops"]["Insert"][] = [];
+  const auditRows: Omit<AuditEntry, "request">[] = [];
+
   for (const op of parsed.data.ops) {
-    // sync_ops has no RLS policy for `authenticated` at all (0002_rls.sql)
-    // — every read/write here has to go through service_role.
-    const { data: existing } = await admin
-      .from("sync_ops")
-      .select("op_id")
-      .eq("op_id", op.op_id)
-      .maybeSingle();
-    if (existing) {
+    if (alreadyApplied.has(op.op_id)) {
       results.push({ op_id: op.op_id, status: "duplicate" });
       continue;
     }
@@ -69,7 +82,7 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
     });
     results.push(outcome);
 
-    await admin.from("sync_ops").insert({
+    syncOpRows.push({
       op_id: op.op_id,
       org_id: orgId,
       device_id: device?.id ?? null,
@@ -79,7 +92,7 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
     });
 
     if (outcome.status === "applied") {
-      await logAudit({
+      auditRows.push({
         orgId,
         actorId: userId,
         actorRole: session.auth.claims.user_role,
@@ -87,10 +100,14 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
         entity: op.type === "day.close" ? "attendance_days" : "attendance_records",
         entityId: "record_id" in outcome ? (outcome.record_id ?? null) : null,
         after: op.payload,
-        request,
       });
     }
   }
+
+  if (syncOpRows.length > 0) {
+    await admin.from("sync_ops").insert(syncOpRows);
+  }
+  await logAuditBatch(auditRows, request);
 
   return apiOk({ server_time: new Date().toISOString(), results });
 });
