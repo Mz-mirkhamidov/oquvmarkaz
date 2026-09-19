@@ -8,6 +8,7 @@ import { authPool } from "@/lib/db/auth-pool";
 import { adminDb } from "@/lib/db/admin";
 import { telegramLogin, isReservedSignUpEmail } from "@/lib/auth/plugins/telegram-login";
 import { devicePin } from "@/lib/auth/plugins/device-pin";
+import { setPassword } from "@/lib/auth/plugins/set-password";
 
 /**
  * TZ v2 §6 — the sole session/identity layer. Postgres (via `authPool`,
@@ -171,6 +172,7 @@ function buildAuth() {
     plugins: [
       telegramLogin(),
       devicePin(),
+      setPassword(),
       customSession(async ({ user, session }) => {
         // customSession() can't see this config's own additionalFields (the
         // inferred type is circular: this array is *part of* the config that

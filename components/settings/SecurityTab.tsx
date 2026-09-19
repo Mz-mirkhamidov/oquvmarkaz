@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { apiGet, apiDelete } from "@/lib/api/client";
+import { PasswordSection } from "@/components/settings/PasswordSection";
 
 interface SessionListItem {
   id: string;
@@ -224,6 +225,10 @@ function AuthEventsSection() {
 export function SecurityTab() {
   return (
     <div className="flex flex-col gap-8">
+      <section className="flex flex-col gap-3">
+        <h2 className="text-[15px] font-semibold text-text">Parol</h2>
+        <PasswordSection />
+      </section>
       <section className="flex flex-col gap-3">
         <h2 className="text-[15px] font-semibold text-text">Faol sessiyalar</h2>
         <SessionsSection />

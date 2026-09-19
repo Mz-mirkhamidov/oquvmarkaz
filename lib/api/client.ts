@@ -32,7 +32,20 @@ export async function apiFetch<T>(
   }
 
   if (!body.ok) {
-    throw new ApiClientError(res.status, body.error.code, body.error.message, body.error.details);
+    // Not every error body is this app's { ok, error } envelope. Better
+    // Auth's own middleware answers with a bare { code, message } — its
+    // sessionMiddleware 401 being the one the UI actually hits — and
+    // reading body.error.code on that threw a TypeError, which is not an
+    // ApiClientError, so every caller's `err instanceof ApiClientError`
+    // branch was skipped and the real code was lost.
+    const err = (body as { error?: { code?: string; message?: string; details?: unknown } }).error;
+    const fallback = body as unknown as { code?: string; message?: string };
+    throw new ApiClientError(
+      res.status,
+      err?.code ?? fallback.code ?? "NETWORK_ERROR",
+      err?.message ?? fallback.message ?? "Hozir ulanib bo'lmadi.",
+      err?.details,
+    );
   }
   return body.data;
 }

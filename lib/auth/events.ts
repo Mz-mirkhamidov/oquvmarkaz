@@ -3,10 +3,10 @@ import "server-only";
 import { authPool } from "@/lib/db/auth-pool";
 import type { AuthCode } from "@/lib/auth/errors";
 
-export type AuthStage = "bot" | "token" | "pin" | "device" | "session";
+export type AuthStage = "bot" | "token" | "pin" | "device" | "session" | "password";
 
 export interface AuthEvent {
-  code: AuthCode | "LOGIN_OK" | "REGISTER_OK";
+  code: AuthCode | "LOGIN_OK" | "REGISTER_OK" | "PASSWORD_SET";
   stage: AuthStage;
   ok: boolean;
   userId?: string;

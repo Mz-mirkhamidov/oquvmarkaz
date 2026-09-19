@@ -182,11 +182,16 @@ export default function EmailAuthPage() {
             </Button>
           </form>
 
-          {/* No password reset yet: there is no mail provider wired up, so
-              a "forgot password" link would lead nowhere. The bot is the
-              working recovery path for anyone who has Telegram. */}
+          {/* Reset-by-email needs a mail provider and there isn't one, so
+              recovery runs through the bot instead: it can already prove
+              who you are and hand you a session, and Sozlamalar ->
+              Xavfsizlik -> Parol sets a new password from there. */}
           <p className="text-center text-xs text-text-3">
-            Parolni unutdingizmi? Telegram orqali kiring.
+            Parolni unutdingizmi?{" "}
+            <Link href="/kirish" className="underline underline-offset-2">
+              Telegram orqali kiring
+            </Link>{" "}
+            va Sozlamalar → Xavfsizlik bo&apos;limidan yangi parol qo&apos;ying.
           </p>
         </CardContent>
       </Card>
